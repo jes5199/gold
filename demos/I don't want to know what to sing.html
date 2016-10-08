@@ -1,0 +1,193 @@
+<html>
+  <head>
+    <script>
+    var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    var samplesPerBuffer = 1024;
+    var scriptNode = audioCtx.createScriptProcessor(1024, 0, 1);
+    var gl;
+    var canvas;
+    var program;
+
+    console.log( audioCtx.sampleRate );
+
+    var pixels;
+
+    scriptNode.onaudioprocess = function (event) {
+      var length = event.outputBuffer.length;
+      var channelData = event.outputBuffer.getChannelData(0);
+      if(!pixels) {
+        pixels = new Uint8Array(gl.drawingBufferWidth * gl.drawingBufferHeight * 4);
+      }
+
+      gl.uniform1f(gl.getUniformLocation(program, "offset_seconds"), event.playbackTime);
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+      gl.readPixels(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+      for(n = 0; n < length; n+=1) {
+        //var seconds = event.playbackTime + (n / audioCtx.sampleRate);
+
+        //var frequency = 261.625565;
+        //channelData[n] = Math.sin(seconds / 10 * Math.PI*2) * Math.sin(seconds * frequency * Math.PI*2);
+        channelData[n] = 0;
+        for(var y = 0; y < 1; y++) {
+          for(var c = 0; c < 3; c++) {
+            channelData[n] += 2 * ( (pixels[n * 4 + c + (y * length)] / 255.0) - 0.5);
+          }
+        }
+      }
+    }
+
+    function start() {
+      canvas = document.getElementById("glcanvas");
+
+      gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+
+      var vertex_shader = gl.createShader(gl.VERTEX_SHADER);
+      gl.shaderSource(vertex_shader, document.getElementById("vertex-shader").text);
+      gl.compileShader(vertex_shader);
+
+      var success = gl.getShaderParameter(vertex_shader, gl.COMPILE_STATUS);
+      if (!success) {
+        console.log(gl.getShaderInfoLog(vertex_shader));
+      }
+
+      var fragment_shader = gl.createShader(gl.FRAGMENT_SHADER);
+      gl.shaderSource(fragment_shader, document.getElementById("fragment-shader").text);
+      gl.compileShader(fragment_shader);
+
+      var success = gl.getShaderParameter(fragment_shader, gl.COMPILE_STATUS);
+      if (!success) {
+        console.log(gl.getShaderInfoLog(fragment_shader));
+      }
+
+      program = gl.createProgram();
+      gl.attachShader(program, vertex_shader);
+      gl.attachShader(program, fragment_shader);
+      gl.linkProgram(program);
+      var success = gl.getProgramParameter(program, gl.LINK_STATUS);
+      if (!success) {
+        console.log(gl.getProgramInfoLog(program));
+      }
+
+      var positionAttributeLocation = gl.getAttribLocation(program, "a_position");
+      var positionBuffer = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+      var positions = [
+        -1, -1,
+        1, 1,
+        -1, 1,
+        -1, -1,
+        1, 1,
+        1, -1,
+      ];
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
+      gl.enableVertexAttribArray(positionAttributeLocation);
+      gl.vertexAttribPointer(
+              positionAttributeLocation, 2, gl.FLOAT, false, 0, 0)
+
+
+      gl.useProgram(program);
+
+      gl.uniform2f(gl.getUniformLocation(program, "u_resolution"), gl.canvas.width, gl.canvas.height);
+
+      gl.uniform1f(gl.getUniformLocation(program, "sample_rate"), audioCtx.sampleRate);
+
+      gl.uniform1f(gl.getUniformLocation(program, "offset_seconds"), 0);
+
+      gl.clearColor(0, 0, 0, 0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+      scriptNode.connect(audioCtx.destination);
+
+      var gainNode = audioCtx.createGain();
+      scriptNode.connect(gainNode);
+      gainNode.gain.value = 10.0;
+      gainNode.connect(audioCtx.destination);
+
+    }
+    </script>
+    <script id="vertex-shader" type="x-shader/x-vertex">
+      precision mediump float;
+      attribute vec4 a_position;
+      uniform vec2 u_resolution;
+
+      varying vec2 position;
+      varying vec2 coords;
+
+      void main() {
+        position = vec2(a_position[0], a_position[1]);
+        coords = ((position + 1.0) / 2.0) * u_resolution;
+        gl_Position = a_position;
+      }
+    </script>
+    <script id="fragment-shader" type="x-shader/x-fragment">
+    precision mediump float;
+    varying vec2 position;
+    varying vec2 coords;
+    uniform float sample_rate;
+    uniform float offset_seconds;
+
+    float norm(float s) {
+      return s / 2.0 + 0.5;
+    }
+
+    void main() {
+      float seconds = offset_seconds + (coords[0] / sample_rate);
+      float sound = 0.0;
+      float sound2 = 0.0;
+      float sound3 = 0.0;
+      float bpm = 80.0;
+      float beats_per_measure = 4.0;
+      float seconds_per_beat = (60.0 / bpm);
+      float seconds_per_measure = seconds_per_beat * beats_per_measure;
+      float measurenum = seconds / seconds_per_measure;
+      float beatnum = mod(seconds, seconds_per_measure) / seconds_per_beat;
+      float beatpart = mod(seconds, seconds_per_beat) / seconds_per_beat;
+      float pi = 3.14159265359;
+      float tau = pi * 2.0;
+      if(beatpart < 0.001 ){
+        sound += 0.9;
+      } else if(beatnum > 3.2 && beatnum < 3.201 ) {
+        sound3 += 0.9;
+      } else {
+        sound += 0.0;
+      }
+      float pitch = 440.0;
+      if(mod(measurenum, 4.0) < 2.0) {
+        if(beatnum < 1.0) {
+          pitch = 261.626;
+        } else if(beatnum < 2.0) {
+          pitch = 293.665;
+        } else if(beatnum < 3.0) {
+          pitch = 329.628;
+        }
+      } else {
+        if(beatnum < 1.0) {
+          pitch = 329.628;
+        } else if(beatnum < 2.0) {
+          pitch = 293.665;
+        } else if(beatnum < 3.0) {
+          pitch = 261.626;
+        } else {
+          pitch = 220.0;
+        }
+      }
+      sound2 += 0.5 * sin(seconds * pitch * tau);
+      gl_FragColor.rgba = vec4(norm(sound), norm(sound3), norm(sound2), 1);
+    }
+    </script>
+    <style>
+      #glcanvas {
+        margin: auto;
+        position: absolute;
+        top: 0; bottom: 0; left: 0; right: 0;
+      }
+      body {background: #808080}
+    </style>
+  </head>
+  <body>
+    <body onload="start()" >
+      <canvas id="glcanvas" width="1024" height="512"></canvas>
+    </body>
+  </body>
+</html>
