@@ -12,7 +12,8 @@
 
     var pixels;
 
-    var pitches = [110, 220, 440];
+    var pitches = [350, 440, 880];
+    var last_inc = 0;
     scriptNode.onaudioprocess = function (event) {
       var length = event.outputBuffer.length;
       var height = gl.drawingBufferHeight;
@@ -22,16 +23,20 @@
         pixels = new Uint8Array(width * height * 4);
       }
 
-      for(p = 0; p < pitches.length; p+=1){
-        pitches[p] *= 1.0595;
-        if(pitches[p] >= 880) {
-          p = 110;
-        }
-      }
+      //for(p = 0; p < pitches.length; p+=1){
+      //  if(event.playbackTime > last_inc + 1) {
+      //    last_inc = event.playbackTime;
+      //    pitches[p] *= 1.0594630943;
+      //    if(pitches[p] >= 1760 * 4) {
+      //      pitches[p] = 110;
+      //    }
+      //  }
+      //}
+      pitches[0] += 0;
 
       gl.uniform1f(gl.getUniformLocation(program, "offset_seconds"), event.playbackTime);
       gl.uniform1fv(gl.getUniformLocation(program, "pitches"), pitches);
-      gl.uniform1i(gl.getUniformLocation(program, "pitch_count"), 3);
+      gl.uniform1i(gl.getUniformLocation(program, "pitch_count"), 2);
       gl.drawArrays(gl.TRIANGLES, 0, 6);
       gl.readPixels(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
 
