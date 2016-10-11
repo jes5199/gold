@@ -133,9 +133,72 @@
 
     void main() {
       float seconds = offset_seconds + (coords[0] / sample_rate);
-      float sound = 0.9 * sin(seconds / 10.0 * 2.0 * 3.141592653589793) * sin(seconds * 261.625565 * 2.0 * 1.0 * 3.141592653589793);
-      float sound2 = 0.9 * sin(seconds / 7.0 * 2.0 * 3.141592653589793) * sin(seconds * 220.0 * 2.0 * 1.0 * 3.141592653589793);
-      float sound3 = 0.9 * sin(seconds / 13.0 * 2.0 * 3.141592653589793) * sin(seconds * 329.628 * 2.0 * 1.0 * 3.141592653589793);
+      float sound = 0.0;
+      float sound2 = 0.0;
+      float sound3 = 0.0;
+      float sound_tmp = 0.0;
+      float bpm = 80.0;
+      float beats_per_measure = 4.0;
+      float seconds_per_beat = (60.0 / bpm);
+      float seconds_per_measure = seconds_per_beat * beats_per_measure;
+      float measurenum = seconds / seconds_per_measure;
+      float beatnum = mod(seconds, seconds_per_measure) / seconds_per_beat;
+      float beatpart = mod(seconds, seconds_per_beat) / seconds_per_beat;
+      float pi = 3.14159265359;
+      float tau = pi * 2.0;
+      if(beatpart < 0.001 ){
+        sound += 0.9;
+      } else if(beatnum > 3.2 && beatnum < 3.201 ) {
+        sound3 += 0.9;
+      } else {
+        sound += 0.0;
+      }
+      float pitch = 440.0;
+      if(mod(measurenum, 4.0) < 2.0) {
+        if(beatnum < 1.0) {
+          pitch = 261.626;
+        } else if(beatnum < 2.0) {
+          pitch = 293.665;
+        } else if(beatnum < 3.0) {
+          pitch = 329.628;
+        }
+      } else {
+        if(beatnum < 1.0) {
+          pitch = 329.628;
+        } else if(beatnum < 2.0) {
+          pitch = 293.665;
+        } else if(beatnum < 3.0) {
+          pitch = 261.626;
+        } else {
+          pitch = 220.0;
+        }
+      }
+      sound2 += 0.5 * sin(seconds * pitch * tau);
+      if(mod(measurenum + 1.0, 4.0) < 2.0) {
+        if(beatnum < 1.0) {
+          pitch = 261.626;
+        } else if(beatnum < 2.0) {
+          pitch = 293.665;
+        } else if(beatnum < 3.0) {
+          pitch = 329.628;
+        }
+      } else {
+        if(beatnum < 1.0) {
+          pitch = 329.628;
+        } else if(beatnum < 2.0) {
+          pitch = 293.665;
+        } else if(beatnum < 3.0) {
+          pitch = 261.626;
+        } else {
+          pitch = 220.0;
+        }
+      }
+      sound3 += 0.5 * sin(seconds * pitch * tau);
+      if(mod(coords[1], 100.0) < 50.0) {
+        sound_tmp = sound3;
+        sound3 = sound2;
+        sound2 = sound_tmp;
+      }
       gl_FragColor.rgba = vec4(norm(sound), norm(sound3), norm(sound2), 1);
     }
     </script>
