@@ -1,6 +1,10 @@
 <html>
   <head>
     <script>
+    function midi2freq(note) {
+      return Math.pow(2,(note - 69) / 12) * 440.0;
+    }
+
     var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     var samplesPerBuffer = 1024;
     var scriptNode = audioCtx.createScriptProcessor(1024, 0, 1);
