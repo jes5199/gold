@@ -14,25 +14,27 @@
 
     scriptNode.onaudioprocess = function (event) {
       var length = event.outputBuffer.length;
+      var height = gl.drawingBufferHeight;
+      var width = gl.drawingBufferWidth;
       var channelData = event.outputBuffer.getChannelData(0);
       if(!pixels) {
-        pixels = new Uint8Array(gl.drawingBufferWidth * gl.drawingBufferHeight * 4);
+        pixels = new Uint8Array(width * height * 4);
       }
 
       gl.uniform1f(gl.getUniformLocation(program, "offset_seconds"), event.playbackTime);
       gl.drawArrays(gl.TRIANGLES, 0, 6);
       gl.readPixels(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-      for(n = 0; n < length; n+=1) {
-        //var seconds = event.playbackTime + (n / audioCtx.sampleRate);
 
-        //var frequency = 261.625565;
-        //channelData[n] = Math.sin(seconds / 10 * Math.PI*2) * Math.sin(seconds * frequency * Math.PI*2);
-        channelData[n] = 0;
-        for(var y = 0; y < 1; y++) {
-          for(var c = 0; c < 3; c++) {
-            channelData[n] += 2 * ( (pixels[n * 4 + c + (y * length)] / 255.0) - 0.5);
+      for(n = 0; n < length; n+=1) {
+        var value = 0;
+        for(var c = 0; c < 3; c++) {
+          var accumulator = 0;
+          for(var y = 0; y < height; y++) {
+            accumulator += pixels[((y * width) + n) * 4 + c];
           }
+          value += (accumulator / (height * 255)) - 0.5;
         }
+        channelData[n] = value;
       }
     }
 
@@ -194,7 +196,7 @@
         }
       }
       sound3 += 0.5 * sin(seconds * pitch * tau);
-      if(mod(coords[1], 100.0) < 50.0) {
+      if(mod(coords[1], 64.0) < 32.0) {
         sound_tmp = sound3;
         sound3 = sound2;
         sound2 = sound_tmp;
