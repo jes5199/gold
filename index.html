@@ -12,6 +12,7 @@
 
     var pixels;
 
+    var pitches = [110, 220, 440];
     scriptNode.onaudioprocess = function (event) {
       var length = event.outputBuffer.length;
       var height = gl.drawingBufferHeight;
@@ -21,7 +22,16 @@
         pixels = new Uint8Array(width * height * 4);
       }
 
+      for(p = 0; p < pitches.length; p+=1){
+        pitches[p] *= 1.0595;
+        if(pitches[p] >= 880) {
+          p = 110;
+        }
+      }
+
       gl.uniform1f(gl.getUniformLocation(program, "offset_seconds"), event.playbackTime);
+      gl.uniform1fv(gl.getUniformLocation(program, "pitches"), pitches);
+      gl.uniform1i(gl.getUniformLocation(program, "pitch_count"), 3);
       gl.drawArrays(gl.TRIANGLES, 0, 6);
       gl.readPixels(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
 
@@ -89,6 +99,8 @@
 
       gl.useProgram(program);
 
+      gl.uniform1fv(gl.getUniformLocation(program, "pitches"), [0,0,0]);
+      gl.uniform1i(gl.getUniformLocation(program, "pitch_count"), 0);
       gl.uniform2f(gl.getUniformLocation(program, "u_resolution"), gl.canvas.width, gl.canvas.height);
 
       gl.uniform1f(gl.getUniformLocation(program, "sample_rate"), audioCtx.sampleRate);
@@ -128,6 +140,8 @@
     varying vec2 coords;
     uniform float sample_rate;
     uniform float offset_seconds;
+    uniform float pitches[3];
+    uniform int pitch_count;
 
     float norm(float s) {
       return s / 2.0 + 0.5;
@@ -148,58 +162,15 @@
       float beatpart = mod(seconds, seconds_per_beat) / seconds_per_beat;
       float pi = 3.14159265359;
       float tau = pi * 2.0;
-      if(beatpart < 0.001 ){
-        sound += 0.9;
-      } else if(beatnum > 3.2 && beatnum < 3.201 ) {
-        sound3 += 0.9;
-      } else {
-        sound += 0.0;
+
+      if(pitch_count > 0){
+        sound = sin(seconds * tau * pitches[0]);
       }
-      float pitch = 440.0;
-      if(mod(measurenum, 4.0) < 2.0) {
-        if(beatnum < 1.0) {
-          pitch = 261.626;
-        } else if(beatnum < 2.0) {
-          pitch = 293.665;
-        } else if(beatnum < 3.0) {
-          pitch = 329.628;
-        }
-      } else {
-        if(beatnum < 1.0) {
-          pitch = 329.628;
-        } else if(beatnum < 2.0) {
-          pitch = 293.665;
-        } else if(beatnum < 3.0) {
-          pitch = 261.626;
-        } else {
-          pitch = 220.0;
-        }
+      if(pitch_count > 1){
+        sound2 = sin(seconds * tau * pitches[1]);
       }
-      sound2 += 0.5 * sin(seconds * pitch * tau);
-      if(mod(measurenum + 1.0, 4.0) < 2.0) {
-        if(beatnum < 1.0) {
-          pitch = 261.626;
-        } else if(beatnum < 2.0) {
-          pitch = 293.665;
-        } else if(beatnum < 3.0) {
-          pitch = 329.628;
-        }
-      } else {
-        if(beatnum < 1.0) {
-          pitch = 329.628;
-        } else if(beatnum < 2.0) {
-          pitch = 293.665;
-        } else if(beatnum < 3.0) {
-          pitch = 261.626;
-        } else {
-          pitch = 220.0;
-        }
-      }
-      sound3 += 0.5 * sin(seconds * pitch * tau);
-      if(mod(coords[1], 64.0) < 32.0) {
-        sound_tmp = sound3;
-        sound3 = sound2;
-        sound2 = sound_tmp;
+      if(pitch_count > 2){
+        sound3 = sin(seconds * tau * pitches[2]);
       }
       gl_FragColor.rgba = vec4(norm(sound), norm(sound3), norm(sound2), 1);
     }
