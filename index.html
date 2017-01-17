@@ -16,7 +16,7 @@
 
     var pixels;
 
-    var pitches = [350, 440, 880];
+    var pitches = [350, 440, 220];
     var last_inc = 0;
     scriptNode.onaudioprocess = function (event) {
       var length = event.outputBuffer.length;
@@ -40,7 +40,7 @@
 
       gl.uniform1f(gl.getUniformLocation(program, "offset_seconds"), event.playbackTime);
       gl.uniform1fv(gl.getUniformLocation(program, "pitches"), pitches);
-      gl.uniform1i(gl.getUniformLocation(program, "pitch_count"), 2);
+      gl.uniform1i(gl.getUniformLocation(program, "pitch_count"), 3);
       gl.drawArrays(gl.TRIANGLES, 0, 6);
       gl.readPixels(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
 
@@ -158,30 +158,22 @@
 
     void main() {
       float seconds = offset_seconds + (coords[0] / sample_rate);
-      float sound = 0.0;
-      float sound2 = 0.0;
-      float sound3 = 0.0;
-      float sound_tmp = 0.0;
-      float bpm = 80.0;
-      float beats_per_measure = 4.0;
-      float seconds_per_beat = (60.0 / bpm);
-      float seconds_per_measure = seconds_per_beat * beats_per_measure;
-      float measurenum = seconds / seconds_per_measure;
-      float beatnum = mod(seconds, seconds_per_measure) / seconds_per_beat;
-      float beatpart = mod(seconds, seconds_per_beat) / seconds_per_beat;
+      float red = 0.0;
+      float green = 0.0;
+      float blue = 0.0;
       float pi = 3.14159265359;
       float tau = pi * 2.0;
 
-      if(pitch_count > 0){
-        sound = sin(seconds * tau * pitches[0]);
+      float line_size = 32.0;
+
+      for(int i = 0; i < 3; i++){
+        float pitch_part = mod(coords.y / line_size, float(pitch_count));
+        if( pitch_part - float(i) >= 0.0 && pitch_part - float(i) < 1.0 ) {
+          blue = sin(seconds * tau * pitches[i]);
+        }
       }
-      if(pitch_count > 1){
-        sound2 = sin(seconds * tau * pitches[1]);
-      }
-      if(pitch_count > 2){
-        sound3 = sin(seconds * tau * pitches[2]);
-      }
-      gl_FragColor.rgba = vec4(norm(sound), norm(sound3), norm(sound2), 1);
+
+      gl_FragColor.rgba = vec4(norm(red), norm(green), norm(blue), 1);
     }
     </script>
     <style>
