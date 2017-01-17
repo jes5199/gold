@@ -6,7 +6,7 @@
     }
 
     var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    var scriptNode = audioCtx.createScriptProcessor(2048, 0, 1);
+    var scriptNode = audioCtx.createScriptProcessor(1024, 0, 1);
     var gl;
     var canvas;
     var program;
@@ -109,38 +109,48 @@
       gl.clear(gl.COLOR_BUFFER_BIT);
       gl.drawArrays(gl.TRIANGLES, 0, 6);
 
-      scriptNode.connect(audioCtx.destination);
+      //scriptNode.connect(audioCtx.destination);
 
       var gainNode = audioCtx.createGain();
-      scriptNode.connect(gainNode);
-      gainNode.gain.value = 10.0;
+      gainNode.gain.value = 20.0;
+
+      var filterNode = audioCtx.createBiquadFilter();
+      filterNode.type = "lowpass";
+      filterNode.frequency = 100;
+      filterNode.Q = 5;
+
+      scriptNode.connect(filterNode);
+      filterNode.connect(gainNode);
       gainNode.connect(audioCtx.destination);
 
       changeNotes();
     }
 
     var patterns = [
-      [1,2],
-      [3,40],
-      [404, 346, 380],
-      [420, 430, 440, 450, 460],
-      [9, 18],
-      [400, 350, 300],
-      [1, 2, 3, 4, 5, 6, 7],
-      [200, 140]
+      [97.9989, 110.000, 123.471, 130.813, 146.832, 164.814, 174.614, 195.998],
+      [195.998, 220.000, 246.942, 261.626, 293.665, 329.628, 349.228, 391.995],
+      [246.942, 195.998],
+      [391.995, 391.995, 440.000, 440.000],
+      [349.228, 329.628, 293.665, 293.665],
+      [97.9989],
+      [220],
+      [48.99945]
     ];
     function changeNotes() {
       var now = new Date();
+      var millis = now.getTime();
+
+      var beats = Math.floor(millis / 1000.0 / 60 * 120);
 
       for(var i = 0; i < patterns.length; i++) {
         var pattern = patterns[i];
         if(pattern.length > 0) {
-          var pitch = pattern[now.getSeconds() % pattern.length];
+          var pitch = pattern[beats % pattern.length];
           pitches[i] = pitch;
           //pitches[i] = pattern[0];
         }
       }
-      setTimeout(changeNotes);
+      setTimeout(changeNotes, 10);
     }
 
     </script>
@@ -188,7 +198,7 @@
         }
       }
 
-      float fade_edge = 1.0;
+      float fade_edge = 0.00;
 
       if(position.x < -1.0 + fade_edge) {
         blue = blue * (1.0 - ((position.x + (1.0 - fade_edge)) / -fade_edge));
@@ -212,7 +222,7 @@
   </head>
   <body>
     <body onload="start()" >
-      <canvas id="glcanvas" width="2048" height="512"></canvas>
+      <canvas id="glcanvas" width="1024" height="512"></canvas>
     </body>
   </body>
 </html>
