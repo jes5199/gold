@@ -25,7 +25,12 @@
     var automataWorker;
     var automataImageData;
 
-    var line_size = 512 / 8;
+    var line_size = 512 / 1;
+
+    var period = 0.02321995464; // seconds
+    var resonance = 43.06640625; // hz
+
+    var degrader = 15;
 
     scriptNode.onaudioprocess = function (event) {
       var length = event.outputBuffer.length;
@@ -36,7 +41,8 @@
         pixels = new Uint8Array(width * height * 4);
       }
 
-      gl.uniform1f(gl.getUniformLocation(program, "offset_seconds"), event.playbackTime);
+      console.log(event.playbackTime);
+      gl.uniform1f(gl.getUniformLocation(program, "offset_seconds"), (Math.pow(2, degrader) * period) + event.playbackTime % 23.7772335514);
       gl.uniform1fv(gl.getUniformLocation(program, "pitches"), pitches);
       gl.uniform1i(gl.getUniformLocation(program, "pitch_count"), 32);
       gl.uniform1f(gl.getUniformLocation(program, "line_size"), line_size);
@@ -62,7 +68,6 @@
         }
         channelData[n] = (value / (height * 255 * 3 / 2)) - 1;
       }
-      console.log(channelData[0]);
     }
 
     function start() {
@@ -163,7 +168,6 @@
       setTimeout(automataTick, 100);
     }
 
-    var resonance = 43.06640625;
     var e1 = 41.20;
     var f1 = 43.65;
     var freq = resonance;
@@ -173,17 +177,17 @@
     //[freq],
     //[freq * 2],
     //[freq * 4],
-    //[freq * 8],
+    [freq * 8],
     //[freq * 12],
     //[freq * 16],
     //[freq * 24],
     //[freq * 32],
     //[freq * 64],
     //[freq * 128],
-      [ntv[1], ntv[3], ntv[5]],
-      [ntv[4], ntv[5]],
-      [ntv[7], ntv[6], ntv[5], ntv[1]],
-      [ntv[1], ntv[4], ntv[2], ntv[5], ntv[8]],
+    //[ntv[1], ntv[3], ntv[5]],
+    //[ntv[4], ntv[5]],
+    //[ntv[7], ntv[6], ntv[5], ntv[1]],
+    //[ntv[1], ntv[4], ntv[2], ntv[5], ntv[8]],
     ];
     var bpm = 100;
 
@@ -220,7 +224,7 @@
       }
     </script>
     <script id="fragment-shader" type="x-shader/x-fragment">
-    precision mediump float;
+    precision highp float;
     varying vec2 position;
     varying vec2 coords;
     uniform float sample_rate;
