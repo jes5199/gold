@@ -25,12 +25,12 @@
     var automataWorker;
     var automataImageData;
 
-    var line_size = 512 / 1;
+    var line_size = 512 / 8;
 
     var period = 0.02321995464; // seconds
     var resonance = 43.06640625; // hz
 
-    var degrader = 15;
+    var degrader = 16;
 
     scriptNode.onaudioprocess = function (event) {
       var length = event.outputBuffer.length;
@@ -177,17 +177,17 @@
     //[freq],
     //[freq * 2],
     //[freq * 4],
-    [freq * 8],
+    //[freq * 8],
     //[freq * 12],
     //[freq * 16],
     //[freq * 24],
     //[freq * 32],
     //[freq * 64],
     //[freq * 128],
-    //[ntv[1], ntv[3], ntv[5]],
-    //[ntv[4], ntv[5]],
-    //[ntv[7], ntv[6], ntv[5], ntv[1]],
-    //[ntv[1], ntv[4], ntv[2], ntv[5], ntv[8]],
+    [ntv[1], ntv[3], ntv[5]],
+    [ntv[4], ntv[5]],
+    [ntv[7], ntv[6], ntv[5], ntv[1]],
+    [ntv[1], ntv[4], ntv[2], ntv[5], ntv[8]],
     ];
     var bpm = 100;
 
