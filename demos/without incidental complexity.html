@@ -187,9 +187,10 @@
     ];
     var bpm = 100;
 
+    var beginningTime = (new Date()).getTime();
     function changeNotes() {
       var now = new Date();
-      var millis = now.getTime();
+      var millis = now.getTime() - beginningTime;
 
       var beats = Math.floor(millis / 1000.0 / 60 * bpm);
 
