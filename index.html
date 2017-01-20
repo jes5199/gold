@@ -193,19 +193,16 @@
     var freq = resonance;
     var base = freq * 4;
     var ntv = [0, base, base * 9/8, base * 81/64, base * 4/3, base * 3/2, base * 27/16, base * 243/128, base * 2]
+
     var patterns = [
-      [440],
-      [220],
-      [110],
-      [880],
-      [440],
-      [220],
-      [110],
-      [880],
     //[freq],
     //[freq * 2],
     //[freq * 4],
-    //[freq * 8],
+    [freq * 8],
+    [freq * 8],
+    [freq * 8],
+    [freq * 8],
+    [freq * 8],
     //[freq * 12],
     //[freq * 16],
     //[freq * 24],
@@ -266,6 +263,10 @@
       return s / 2.0 + 0.5;
     }
 
+    float denorm(float s) {
+      return (s - 0.5) * 2.0;
+    }
+
     vec3 rgb2hsv(vec3 c) {
 	vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
 	vec4 p = mix(vec4(c.bg, K.wz), vec4(c.gb, K.xy), step(c.b, c.g));
@@ -294,10 +295,20 @@
       float pi = 3.14159265359;
       float tau = pi * 2.0;
 
+      float shades = 5.0;
+
       for(int i = 0; i < 32; i++){
         float pitch_part = mod(position.y * string_count, float(pitch_count));
         if( pitch_part - float(i) >= 0.0 && pitch_part - float(i) < 1.0 ) {
+          float vertical_part = pitch_part - float(i);
           blue = norm(sin(seconds * tau * pitches[i]));
+          float blue_shade = blue * shades;
+          float major_shade = floor(blue_shade + 1.0);
+          float shade_error = major_shade - 1.0 - blue_shade;
+          blue = major_shade / shades;
+          if(abs(denorm(vertical_part)) > abs(shade_error)) {
+            blue += (1.0 / shades) * sign(shade_error);
+          }
         }
       }
 
@@ -316,6 +327,7 @@
       green = (0.5 * (1.0 - sample.a) + green_channel * sample.a);
 
       red = 0.5;
+      green = red = blue;
 
       gl_FragColor.rgba = vec4(red, green, blue, 1.0);
     }
