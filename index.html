@@ -5,10 +5,8 @@
       return Math.pow(2,(note - 69) / 12) * 440.0;
     }
 
-    var period = 0.02321995464; // seconds
-    var resonance = 43.06640625; // hz
-
-    var degrader = 11;
+    var period = 1024 / 44100; // seconds
+    var resonance = 44100 / 1024; // hz
 
     var e1 = 41.20;
     var f1 = 43.65;
@@ -16,47 +14,53 @@
     var base = freq * 4;
     var ntv = [0, base, base * 9/8, base * 81/64, base * 4/3, base * 3/2, base * 27/16, base * 243/128, base * 2]
 
-    var string_count = 4;
+    var string_count = 8;
 
     var patterns = [
-      [resonance * 4],
-      [0],
-      [0],
-      [0],
-      [0],
-      [0],
-      [0],
-      [0],
-    //[freq],
-    //[freq * 2],
-    //[freq * 4],
-    //[freq * 8],
-    //[freq * 12],
-    //[freq * 16],
-    //[freq * 24],
-    //[freq * 32],
-    //[freq * 64],
-    //[freq * 128],
+      //[resonance * 6],
+      //[resonance * 3],
+      [ntv[1], ntv[3], ntv[5], 0],
+      [ntv[1], ntv[3], ntv[5], 0, 0],
+      [ntv[1], ntv[3], ntv[5], 0],
+      [ntv[1], ntv[3], ntv[5], 0, 0],
+      [ntv[1], ntv[3], ntv[5], 0],
+      [ntv[1], ntv[3], ntv[5], 0, 0],
+      [ntv[1], ntv[3], ntv[5], 0],
+      [ntv[1], ntv[3], ntv[5], 0, 0],
     ];
-    var bpm = 100;
+    var samplePatterns = [
+      [ntv[1], ntv[3], ntv[5], ntv[1], ntv[3], ntv[5], ntv[1], ntv[3], ntv[5], 0, 0],
+      [],
+      [ntv[1], ntv[3], ntv[5], ntv[1], ntv[3], ntv[5], 0],
+      [],
+      [ntv[1], ntv[3], ntv[5]],
+    ];
+
+    var bpm = 60;
 
     var pixels;
-    var pitches = [0, 0, 0, 0, 0, 0, 0, 0,
+    var pitches = [10, 0, 0, 0, 0, 0, 0, 0,
                    0, 0, 0, 0, 0, 0, 0, 0,
                    0, 0, 0, 0, 0, 0, 0, 0,
                    0, 0, 0, 0, 0, 0, 0, 0];
 
-    var images = [
-      new Image(),
-      new Image(),
-      new Image(),
-      new Image(),
-      new Image(),
+    var imageFrequencies = [
+      resonance * 2, resonance * 4, resonance * 16/5, 100, 261.626 // resonance * 5
     ];
 
-    var imageFrequencies = [
-      resonance, resonance * 4, 220, 220, 220
-    ];
+    var images = [new Image(), new Image(), new Image(), new Image(), new Image(), new Image(1024, 512)];
+      //images[0].src = "images/AKWF_cello_0001.wav.png";
+      //images[2].src = "images/lion.webp";
+      //images[2].src = "squarewave.png";
+      //images[3].src = "AKWF_piano_0001.8.png";
+      images[0].src = "images/AKWF_hvoice_0005.wav.png"
+      images[2].src = "images/AKWF_hvoice_0008.wav.png"
+      images[4].src = "images/AKWF_hvoice_0015.wav.png"
+      //images[3].src = "images/319832__kwahmah-02__noisehihattap.wav.png"
+      //images[5].src = "images/lion.webp";
+
+    var pitchesOffsets = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+    var imagesOffsets = [0,0,0,0,0];
 
     var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     var scriptNode = audioCtx.createScriptProcessor(1024, 0, 1);
@@ -75,16 +79,26 @@
 
     var javascriptTimeout = 20; //ms
 
+    //var playbackTimeStart = -1;
+
+    var frameCount = 0;
+
     scriptNode.onaudioprocess = function (event) {
       var length = event.outputBuffer.length;
       var height = gl.drawingBufferHeight;
       var width = gl.drawingBufferWidth;
       var channelData = event.outputBuffer.getChannelData(0);
+
+      //if(playbackTimeStart < 0){ playbackTimeStart = event.playbackTime};
+      //var seconds = event.playbackTime - playbackTimeStart;
+
       if(!pixels) {
         pixels = new Uint8Array(width * height * 4);
       }
 
-      setUniforms(event.playbackTime);
+      var seconds = frameCount * period;
+
+      setUniforms(seconds);
       drawGL();
 
       gl.readPixels(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
@@ -100,6 +114,24 @@
         }
         channelData[n] = (value / (height * 255 * 3 / 2)) - 1;
       }
+
+      incrementOffsets();
+    }
+
+    function incrementOffsets() {
+      frameCount += 1;
+      for(i = 0; i < pitches.length; i++) {
+        pitchesOffsets[i] += period;
+        if(pitches[i] <= 0 || pitchesOffsets[i] > 1024/pitches[i]) {
+          pitchesOffsets[i] = 0;
+        }
+      }
+      for(i = 0; i < imagesOffsets.length; i++) {
+        imagesOffsets[i] += period;
+        if(imageFrequencies[i] <= 0 || imagesOffsets[i] > 1024/imageFrequencies[i]) {
+          imagesOffsets[i] = 0;
+        }
+      }
     }
 
     function start() {
@@ -107,7 +139,10 @@
       gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
 
       for(var i = 0; i < images.length; i++){
-        images[i].src = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+        if(! images[i].src) {
+          images[i].src = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+          images[i].onload = updateTextures;
+        }
       }
 
       var vertex_shader = gl.createShader(gl.VERTEX_SHADER);
@@ -162,7 +197,7 @@
 
       gl.clearColor(0, 0, 0, 0);
       gl.clear(gl.COLOR_BUFFER_BIT);
-      drawGL();
+      //drawGL();
 
       var gainNode = audioCtx.createGain();
       gainNode.gain.value = 20.0;
@@ -186,18 +221,20 @@
     }
 
     function setUniforms(seconds = 0) {
+      //console.log(seconds);
       gl.uniform1fv(gl.getUniformLocation(program, "pitches"), pitches);
       gl.uniform1i(gl.getUniformLocation(program, "pitch_count"), 32);
+      gl.uniform1fv(gl.getUniformLocation(program, "pitches_offsets"), pitchesOffsets);
       gl.uniform2f(gl.getUniformLocation(program, "u_resolution"), gl.canvas.width, gl.canvas.height);
 
       gl.uniform1f(gl.getUniformLocation(program, "sample_rate"), audioCtx.sampleRate);
 
-      seconds = (Math.pow(2, degrader) * period) + seconds; // % 23.7772335514;
       gl.uniform1f(gl.getUniformLocation(program, "offset_seconds"), seconds);
 
       gl.uniform1f(gl.getUniformLocation(program, "string_count"), string_count);
 
       gl.uniform1fv(gl.getUniformLocation(program, "image_freqs"), imageFrequencies);
+      gl.uniform1fv(gl.getUniformLocation(program, "images_offsets"), imagesOffsets);
     }
 
     function drawGL() {
@@ -226,18 +263,21 @@
           pitches[i] = pitch;
         }
       }
+
+      for(var i = 0; i < samplePatterns.length; i++) {
+        var pattern = samplePatterns[i];
+        if(pattern.length > 0) {
+          var pitch = pattern[beats % pattern.length];
+          imageFrequencies[i] = pitch;
+        }
+      }
+
       //pitches.sort(function(a,b){return a-b}).reverse();
       setTimeout(changeNotes, javascriptTimeout);
     }
 
     function makeTextures() {
-      images[1].src = "lion.webp";
-      //images[2].src = "squarewave.png";
-      //images[3].src = "AKWF_piano_0001.8.png";
-      //images[4].src = "AKWF_vgame_0078.8.png"
-      //images[4].src = "squarewave.png";
-
-      glTextures = [gl.TEXTURE0, gl.TEXTURE1, gl.TEXTURE2, gl.TEXTURE3, gl.TEXTURE4];
+      glTextures = [gl.TEXTURE0, gl.TEXTURE1, gl.TEXTURE2, gl.TEXTURE3, gl.TEXTURE4, gl.TEXTURE5];
       for(i = 0; i < images.length; i++) {
         var texture = gl.createTexture();
         gl.activeTexture(glTextures[i]);
@@ -250,7 +290,9 @@
         var imageLocation = gl.getUniformLocation(program, "image" + (i+1));
         gl.uniform1i(imageLocation, i);
       }
-      setTimeout(updateTextures, javascriptTimeout);
+
+      updateTextures();
+      //setTimeout(updateTextures, javascriptTimeout);
     }
 
     function updateTextures() {
@@ -259,7 +301,7 @@
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, images[i]);
       }
 
-      setTimeout(updateTextures, javascriptTimeout * 200);
+      //setTimeout(updateTextures, javascriptTimeout * 200);
     }
 
     </script>
@@ -288,13 +330,20 @@
     uniform float offset_seconds;
     uniform float pitches[32];
     uniform int pitch_count;
+    uniform float pitches_offsets[32];
     uniform float string_count;
     uniform sampler2D image1;
     uniform sampler2D image2;
     uniform sampler2D image3;
     uniform sampler2D image4;
     uniform sampler2D image5;
+
+    uniform sampler2D image6;
+
     uniform float image_freqs[5];
+    uniform float images_offsets[5];
+    float pi = acos(-1.0);
+    float tau = pi * 2.0;
 
     float norm(float s) {
       return s / 2.0 + 0.5;
@@ -325,20 +374,19 @@
     }
 
     void main() {
-      float seconds = offset_seconds + (coords.x / sample_rate);
+      float extra_offset = coords.x / sample_rate;
+      float seconds = offset_seconds + extra_offset;
       float red = 0.0;
       float green = 0.0;
       float blue = 0.0;
-      float pi = 3.14159265359;
-      float tau = pi * 2.0;
 
-      int shades = 2;
+      int shades = 4;//54;
 
       for(int i = 0; i < 32; i++){
         float pitch_part = mod(position.y * string_count, float(pitch_count));
         if( pitch_part - float(i) >= 0.0 && pitch_part - float(i) < 1.0 ) {
           float vertical_part = pitch_part - float(i);
-          blue = norm(sin(seconds * tau * pitches[i]));
+          blue = norm(sin((pitches_offsets[i] + extra_offset) * tau * pitches[i]));
           float blue_shade = blue * float(shades);
           float major_shade = floor(blue_shade + 0.5);
           float shade_error = major_shade - blue_shade;
@@ -357,14 +405,14 @@
       float image_y = 1.0 - (position.y - image_vertical_offset) * image_bands;
 
       float image_frequency = 43.06640625 * 4.0;
+      float image_x;
 
       for(int i = 0; i < 5; i++) {
         if(int(image_band_num) == i) {
           image_frequency = image_freqs[i];
+          image_x = mod( (images_offsets[i] + extra_offset) * image_frequency, 1.0);
         }
       }
-
-      float image_x = mod(seconds * image_frequency, 1.0);
 
       vec2 sample_position = vec2(image_x, image_y);
       vec4 sample;
@@ -383,10 +431,8 @@
       float green_channel = rgb2grey(sample.rgb);
       green = (0.5 * (1.0 - sample.a) + green_channel * sample.a);
 
-      red = 0.5;
-      green = 0.5;
-
-      //red = green = blue;
+      vec4 redSample = texture2D(image6, position * vec2(1,-1) + vec2(0,1) );
+      red = redSample.a * rgb2grey(redSample.rgb) + (0.5 * (1.0 - redSample.a)) ;
 
       gl_FragColor.rgba = vec4(red, green, blue, 1.0);
     }
