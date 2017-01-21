@@ -231,7 +231,7 @@
     }
 
     function makeTextures() {
-      //images[1].src = "lion.webp";
+      images[1].src = "lion.webp";
       //images[2].src = "squarewave.png";
       //images[3].src = "AKWF_piano_0001.8.png";
       //images[4].src = "AKWF_vgame_0078.8.png"
@@ -332,19 +332,21 @@
       float pi = 3.14159265359;
       float tau = pi * 2.0;
 
-      float shades = 4.0;
+      int shades = 2;
 
       for(int i = 0; i < 32; i++){
         float pitch_part = mod(position.y * string_count, float(pitch_count));
         if( pitch_part - float(i) >= 0.0 && pitch_part - float(i) < 1.0 ) {
           float vertical_part = pitch_part - float(i);
           blue = norm(sin(seconds * tau * pitches[i]));
-          float blue_shade = blue * shades;
-          float major_shade = floor(blue_shade + 1.0);
-          float shade_error = major_shade - 1.0 - blue_shade;
-          blue = major_shade / shades;
-          if(abs((vertical_part)) > abs(shade_error)) {
-            blue += (1.0 / shades) * sign(shade_error);
+          float blue_shade = blue * float(shades);
+          float major_shade = floor(blue_shade + 0.5);
+          float shade_error = major_shade - blue_shade;
+          blue = major_shade / float(shades);
+          if(shade_error > 0.0 && vertical_part < shade_error) {
+            blue -= (1.0 / float(shades)) * sign(shade_error);
+          } else if (shade_error < 0.0 && 1.0-vertical_part < -shade_error) {
+            blue -= (1.0 / float(shades)) * sign(shade_error);
           }
         }
       }
