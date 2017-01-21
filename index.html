@@ -8,7 +8,7 @@
     var period = 0.02321995464; // seconds
     var resonance = 43.06640625; // hz
 
-    var degrader = 0;
+    var degrader = 11;
 
     var e1 = 41.20;
     var f1 = 43.65;
@@ -16,15 +16,17 @@
     var base = freq * 4;
     var ntv = [0, base, base * 9/8, base * 81/64, base * 4/3, base * 3/2, base * 27/16, base * 243/128, base * 2]
 
+    var string_count = 4;
+
     var patterns = [
-      [440],
-      [440],
-      [440],
-      [440],
-      [440],
-      [440],
-      [440],
-      [440],
+      [resonance * 4],
+      [0],
+      [0],
+      [0],
+      [0],
+      [0],
+      [0],
+      [0],
     //[freq],
     //[freq * 2],
     //[freq * 4],
@@ -53,9 +55,8 @@
     ];
 
     var imageFrequencies = [
-      440, 440, 440, 220, 220
+      resonance, resonance * 4, 220, 220, 220
     ];
-
 
     var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     var scriptNode = audioCtx.createScriptProcessor(1024, 0, 1);
@@ -67,16 +68,10 @@
 
     console.log( audioCtx.sampleRate );
 
-    for(var i = 0; i < images.length; i++){
-      images[i].src = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
-    }
-
     var glTextures = [];
 
     var automataWorker;
     var automataImageData;
-
-    var string_count = 8;
 
     var javascriptTimeout = 20; //ms
 
@@ -110,6 +105,10 @@
     function start() {
       canvas = document.getElementById("glcanvas");
       gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+
+      for(var i = 0; i < images.length; i++){
+        images[i].src = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+      }
 
       var vertex_shader = gl.createShader(gl.VERTEX_SHADER);
       gl.shaderSource(vertex_shader, document.getElementById("vertex-shader").text);
@@ -193,7 +192,7 @@
 
       gl.uniform1f(gl.getUniformLocation(program, "sample_rate"), audioCtx.sampleRate);
 
-      // seconds = (Math.pow(2, degrader) * period) + seconds % 23.7772335514;
+      seconds = (Math.pow(2, degrader) * period) + seconds; // % 23.7772335514;
       gl.uniform1f(gl.getUniformLocation(program, "offset_seconds"), seconds);
 
       gl.uniform1f(gl.getUniformLocation(program, "string_count"), string_count);
@@ -232,8 +231,11 @@
     }
 
     function makeTextures() {
-      images[1].src = "lion.webp";
-      images[3].src = "lion.webp";
+      //images[1].src = "lion.webp";
+      //images[2].src = "squarewave.png";
+      //images[3].src = "AKWF_piano_0001.8.png";
+      //images[4].src = "AKWF_vgame_0078.8.png"
+      //images[4].src = "squarewave.png";
 
       glTextures = [gl.TEXTURE0, gl.TEXTURE1, gl.TEXTURE2, gl.TEXTURE3, gl.TEXTURE4];
       for(i = 0; i < images.length; i++) {
@@ -248,7 +250,7 @@
         var imageLocation = gl.getUniformLocation(program, "image" + (i+1));
         gl.uniform1i(imageLocation, i);
       }
-      //setTimeout(updateTextures, javascriptTimeout);
+      setTimeout(updateTextures, javascriptTimeout);
     }
 
     function updateTextures() {
@@ -257,7 +259,7 @@
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, images[i]);
       }
 
-      setTimeout(updateTextures, javascriptTimeout * 20);
+      setTimeout(updateTextures, javascriptTimeout * 200);
     }
 
     </script>
@@ -330,7 +332,7 @@
       float pi = 3.14159265359;
       float tau = pi * 2.0;
 
-      float shades = 1.0;
+      float shades = 4.0;
 
       for(int i = 0; i < 32; i++){
         float pitch_part = mod(position.y * string_count, float(pitch_count));
@@ -379,7 +381,10 @@
       float green_channel = rgb2grey(sample.rgb);
       green = (0.5 * (1.0 - sample.a) + green_channel * sample.a);
 
-      red = 0.0;
+      red = 0.5;
+      green = 0.5;
+
+      //red = green = blue;
 
       gl_FragColor.rgba = vec4(red, green, blue, 1.0);
     }
