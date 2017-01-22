@@ -17,8 +17,6 @@
     var string_count = 8;
 
     var patterns = [
-      //[resonance * 6],
-      //[resonance * 3],
       [ntv[1], ntv[3], ntv[5], 0],
       [ntv[1], ntv[3], ntv[5], 0, 0],
       [ntv[1], ntv[3], ntv[5], 0],
@@ -53,9 +51,9 @@
       //images[2].src = "images/lion.webp";
       //images[2].src = "squarewave.png";
       //images[3].src = "AKWF_piano_0001.8.png";
-      images[0].src = "images/AKWF_hvoice_0005.wav.png"
-      images[2].src = "images/AKWF_hvoice_0008.wav.png"
-      images[4].src = "images/AKWF_hvoice_0015.wav.png"
+      images[0].src = "images/AKWF_hvoice_0005.wav.blob.png"
+      images[2].src = "images/AKWF_hvoice_0008.wav.blob.png"
+      images[4].src = "images/AKWF_hvoice_0015.wav.blob.png"
       //images[3].src = "images/319832__kwahmah-02__noisehihattap.wav.png"
       //images[5].src = "images/lion.webp";
 
@@ -123,7 +121,7 @@
       for(i = 0; i < pitches.length; i++) {
         pitchesOffsets[i] += period;
         if(pitches[i] <= 0 || pitchesOffsets[i] > 1024/pitches[i]) {
-          pitchesOffsets[i] = 0;
+          //pitchesOffsets[i] = 0;
         }
       }
       for(i = 0; i < imagesOffsets.length; i++) {
@@ -260,7 +258,10 @@
         var pattern = patterns[i];
         if(pattern.length > 0) {
           var pitch = pattern[beats % pattern.length];
-          pitches[i] = pitch;
+          if(pitches[i] != pitch) {
+            pitches[i] = pitch;
+            //pitchesOffsets[i] = 0;
+          }
         }
       }
 
@@ -268,7 +269,10 @@
         var pattern = samplePatterns[i];
         if(pattern.length > 0) {
           var pitch = pattern[beats % pattern.length];
-          imageFrequencies[i] = pitch;
+          if(imageFrequencies[i] != pitch) {
+            imageFrequencies[i] = pitch;
+            //imagesOffsets[i] = 0;
+          }
         }
       }
 
@@ -380,21 +384,22 @@
       float green = 0.0;
       float blue = 0.0;
 
-      int shades = 4;//54;
+      int shades = 2;//54;
 
       for(int i = 0; i < 32; i++){
         float pitch_part = mod(position.y * string_count, float(pitch_count));
         if( pitch_part - float(i) >= 0.0 && pitch_part - float(i) < 1.0 ) {
           float vertical_part = pitch_part - float(i);
-          blue = norm(sin((pitches_offsets[i] + extra_offset) * tau * pitches[i]));
-          float blue_shade = blue * float(shades);
-          float major_shade = floor(blue_shade + 0.5);
-          float shade_error = major_shade - blue_shade;
-          blue = major_shade / float(shades);
+          float my_offset = pitches_offsets[i] + extra_offset;
+          red = norm(sin((my_offset + 100.0 * tau) * tau * pitches[i]));
+          float red_shade = red * float(shades);
+          float major_shade = floor(red_shade + 0.5);
+          float shade_error = major_shade - red_shade;
+          red = major_shade / float(shades);
           if(shade_error > 0.0 && vertical_part < shade_error) {
-            blue -= (1.0 / float(shades)) * sign(shade_error);
+            red -= (1.0 / float(shades)) * sign(shade_error);
           } else if (shade_error < 0.0 && 1.0-vertical_part < -shade_error) {
-            blue -= (1.0 / float(shades)) * sign(shade_error);
+            red -= (1.0 / float(shades)) * sign(shade_error);
           }
         }
       }
@@ -431,10 +436,15 @@
       float green_channel = rgb2grey(sample.rgb);
       green = (0.5 * (1.0 - sample.a) + green_channel * sample.a);
 
-      vec4 redSample = texture2D(image6, position * vec2(1,-1) + vec2(0,1) );
-      red = redSample.a * rgb2grey(redSample.rgb) + (0.5 * (1.0 - redSample.a)) ;
+      vec4 blueSample = texture2D(image6, position * vec2(1,-1) + vec2(0,1) );
+      blue = blueSample.a * rgb2grey(blueSample.rgb) + (0.5 * (1.0 - blueSample.a)) ;
+
+      blue = 0.5;
 
       gl_FragColor.rgba = vec4(red, green, blue, 1.0);
+
+      float white = (red + green + blue) / 3.0;
+      gl_FragColor.rgba = vec4(red, green, white, 1.0);
     }
     </script>
     <script id="automataWorker" type="javascript/worker">
