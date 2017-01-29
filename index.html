@@ -17,10 +17,10 @@
     var string_count = 4;
 
     var patterns = [
-    //[ntv[1], ntv[3], ntv[5]],
-    //[ntv[4], ntv[5]],
-    //[ntv[7], ntv[6], ntv[5], ntv[1]],
-    //[ntv[1], ntv[4], ntv[2], ntv[5], ntv[8]],
+      [ntv[1], ntv[3], ntv[5]],
+      [ntv[4], ntv[5]],
+      [ntv[7], ntv[6], ntv[5], ntv[1]],
+      [ntv[1], ntv[4], ntv[2], ntv[5], ntv[8]],
     ];
     var samplePatterns = [
     //[ntv[1], ntv[3], ntv[5]],
@@ -30,7 +30,7 @@
     //[ntv[7], ntv[6], ntv[5], ntv[1]],
     ];
 
-    var bpm = 100;
+    var bpm = 60;
 
     var pixels;
     var pitches = [0., 0., 0., 0.0, 0, 0, 0, 0,
@@ -450,8 +450,8 @@
       //blue = blueSample.a * rgb2grey(blueSample.rgb) + (0.5 * (1.0 - blueSample.a)) ;
 
       //blue = 0.5;
-      vec2 c = vec2( 0.36 + 0.05 * sin(seconds / 0.25), 0.1);
-      vec2 v = (position * 2.0 - 1.0) * 2.0;
+      vec2 c = vec2( 0.36 + 0.05 * cos(seconds * 120.0 / 60.0 * tau), 0.1);
+      vec2 v = (position * 2.0 - 1.0) * 1.2;
       float fractal_scale = 0.02;
       const int max_iterations = 255;
       int count = max_iterations;
