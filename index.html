@@ -16,19 +16,18 @@
 
     var string_count = 4;
 
-
     var patterns = [
-      [ntv[1], ntv[3], ntv[5]],
-      [ntv[4], ntv[5]],
-      [ntv[7], ntv[6], ntv[5], ntv[1]],
-      [ntv[1], ntv[4], ntv[2], ntv[5], ntv[8]],
+    //[ntv[1], ntv[3], ntv[5]],
+    //[ntv[4], ntv[5]],
+    //[ntv[7], ntv[6], ntv[5], ntv[1]],
+    //[ntv[1], ntv[4], ntv[2], ntv[5], ntv[8]],
     ];
     var samplePatterns = [
-      [ntv[1], ntv[3], ntv[5]],
-      [ntv[4], ntv[5]],
-      [ntv[7], ntv[6], ntv[5], ntv[1]],
-      [ntv[1], ntv[4], ntv[2], ntv[5], ntv[8]],
-      [ntv[7], ntv[6], ntv[5], ntv[1]],
+    //[ntv[1], ntv[3], ntv[5]],
+    //[ntv[4], ntv[5]],
+    //[ntv[7], ntv[6], ntv[5], ntv[1]],
+    //[ntv[1], ntv[4], ntv[2], ntv[5], ntv[8]],
+    //[ntv[7], ntv[6], ntv[5], ntv[1]],
     ];
 
     var bpm = 100;
@@ -350,8 +349,8 @@
 
     uniform float image_freqs[5];
     uniform float images_offsets[5];
-    float pi = acos(-1.0);
-    float tau = pi * 2.0;
+    const float pi = acos(-1.0);
+    const float tau = pi * 2.0;
 
     float norm(float s) {
       return s / 2.0 + 0.5;
@@ -359,6 +358,13 @@
 
     float denorm(float s) {
       return (s - 0.5) * 2.0;
+    }
+
+    vec2 complex_square( vec2 v ) {
+      return vec2(
+          v.x * v.x - v.y * v.y,
+          v.x * v.y * 2.0
+          );
     }
 
     vec3 rgb2hsv(vec3 c) {
@@ -440,12 +446,27 @@
       float green_channel = rgb2grey(sample.rgb);
       green = (0.5 * (1.0 - sample.a) + green_channel * sample.a);
 
-      vec4 blueSample = texture2D(image6, position * vec2(1,-1) + vec2(0,1) );
-      blue = blueSample.a * rgb2grey(blueSample.rgb) + (0.5 * (1.0 - blueSample.a)) ;
+      //vec4 blueSample = texture2D(image6, position * vec2(1,-1) + vec2(0,1) );
+      //blue = blueSample.a * rgb2grey(blueSample.rgb) + (0.5 * (1.0 - blueSample.a)) ;
 
-      blue = 0.5;
+      //blue = 0.5;
+      vec2 c = vec2( 0.36 + 0.05 * sin(seconds / 0.25), 0.1);
+      vec2 v = (position * 2.0 - 1.0) * 2.0;
+      float fractal_scale = 0.02;
+      const int max_iterations = 255;
+      int count = max_iterations;
 
-      gl_FragColor.rgba = vec4(red, green, blue, 1.0);
+      for ( int i = 0 ; i < max_iterations; i++ ) {
+        v = c + complex_square( v );
+        if ( dot( v, v ) > 4.0 ) {
+          count = i;
+          break;
+        }
+      }
+
+      blue = float( count ) * fractal_scale;
+
+      gl_FragColor.rgba = vec4(red, blue, blue, 1.0);
 
       float white = (red + green + blue) / 3.0;
       //gl_FragColor.rgba = vec4(red, green, white, 1.0);
