@@ -318,7 +318,7 @@
       gl.activeTexture(glTextures[5]);
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
 
-      setTimeout(updateRecursiveTexture, 10);
+      setTimeout(updateRecursiveTexture, 100);
     }
 
     </script>
@@ -457,11 +457,48 @@
       green = (0.5 * (1.0 - sample.a) + green_channel * sample.a);
 
       vec4 blueSample = texture2D(image6, position * vec2(1,-1) + vec2(0,1) );
-      blue = blueSample.a * rgb2grey(blueSample.rgb) + (0.5 * (1.0 - blueSample.a)) ;
+      blue = blueSample.a * blueSample.b + (0.5 * (1.0 - blueSample.a));
+
+      vec4 rightSample = texture2D(image6, position * vec2(1,-1) + vec2(0,1) + vec2(1.0 / 1024.0, 0.0));
+      float right = rightSample.a * rightSample.b + (0.5 * (1.0 - rightSample.a));
+
+      vec4 leftSample = texture2D(image6, position * vec2(1,-1) + vec2(0,1) + vec2(-1.0 / 1024.0, 0.0));
+      float left = leftSample.a * leftSample.b + (0.5 * (1.0 - leftSample.a));
+
+      vec4 upSample = texture2D(image6, position * vec2(1,-1) + vec2(0,1) + vec2(0.0, 1.0 / 512.0));
+      float up = upSample.a * upSample.b + (0.5 * (1.0 - upSample.a));
+
+      vec4 downSample = texture2D(image6, position * vec2(1,-1) + vec2(0,1) + vec2(0.0, -1.0 / 512.0));
+      float down = downSample.a * downSample.b + (0.5 * (1.0 - downSample.a));
+
+      vec4 uprightSample = texture2D(image6, position * vec2(1,-1) + vec2(0,1) + vec2(1.0 / 1024.0, 1.0 / 512.0));
+      float upright = uprightSample.a * uprightSample.b + (0.5 * (1.0 - uprightSample.a));
+
+      vec4 downrightSample = texture2D(image6, position * vec2(1,-1) + vec2(0,1) + vec2(1.0 / 1024.0, -1.0 / 512.0));
+      float downright = downrightSample.a * downrightSample.b + (0.5 * (1.0 - downrightSample.a));
+
+      vec4 upleftSample = texture2D(image6, position * vec2(1,-1) + vec2(0,1) + vec2(-1.0 / 1024.0, 1.0 / 512.0));
+      float upleft = upleftSample.a * upleftSample.b + (0.5 * (1.0 - upleftSample.a));
+
+      vec4 downleftSample = texture2D(image6, position * vec2(1,-1) + vec2(0,1) + vec2(-1.0 / 1024.0, -1.0 / 512.0));
+      float downleft = downleftSample.a * downleftSample.b + (0.5 * (1.0 - downleftSample.a));
+
+      float score = right + left + up + down + upright + downright + upleft + downleft;
+      blue = score / 8.0;
+      if(score >= 1.0 && score < 3.0) {
+        blue = 1.0;
+      }
+      if(score >= 4.0) {
+        blue = 1.0;
+      }
+      if(score >= 5.0) {
+        blue = 0.0;
+      }
 
       //blue = 0.5;
       vec2 c = vec2( 0.36 + 0.05 * cos(seconds * 120.0 / 60.0 * tau), 0.1);
       gl_FragColor.rgba = vec4(red, green, blue, 1.0);
+      gl_FragColor.rgba = vec4(blue, blue, blue, 1.0);
 
       float white = (red + green + blue) / 3.0;
       //gl_FragColor.rgba = vec4(red, green, white, 1.0);
