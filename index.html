@@ -23,11 +23,11 @@
       [ntv[1], ntv[4], ntv[2], ntv[5], ntv[8]],
     ];
     var samplePatterns = [
-    //[ntv[1], ntv[3], ntv[5]],
-    //[ntv[4], ntv[5]],
-    //[ntv[7], ntv[6], ntv[5], ntv[1]],
-    //[ntv[1], ntv[4], ntv[2], ntv[5], ntv[8]],
-    //[ntv[7], ntv[6], ntv[5], ntv[1]],
+      [ntv[1], ntv[3], ntv[5]],
+      [ntv[4], ntv[5]],
+      [ntv[7], ntv[6], ntv[5], ntv[1]],
+      [ntv[1], ntv[4], ntv[2], ntv[5], ntv[8]],
+      [ntv[7], ntv[6], ntv[5], ntv[1]],
     ];
 
     var bpm = 60;
@@ -59,6 +59,7 @@
       images[4].src = "images/AKWF_hvoice_0008.wav.blob.png"
       //images[3].src = "images/319832__kwahmah-02__noisehihattap.wav.png"
       images[0].src = "images/lion.webp";
+      images[5].src = "images/lion.webp";
 
     var pitchesOffsets = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
     var imagesOffsets = [0,0,0,0,0];
@@ -243,11 +244,12 @@
     }
 
     function automataTick() {
-      automataWorker.postMessage([automataImageData, canvas.width, canvas.height]);
+      automataWorker.postMessage([]);
     }
 
     function receiveAutomata(e) {
       automataImageData = e.data;
+      images[5] = automataImageData;
       setTimeout(automataTick, 100);
     }
 
@@ -309,6 +311,14 @@
       }
 
       //setTimeout(updateTextures, javascriptTimeout * 200);
+      setTimeout(updateRecursiveTexture, 1000);
+    }
+
+    function updateRecursiveTexture() {
+      gl.activeTexture(glTextures[5]);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
+
+      setTimeout(updateRecursiveTexture, 10);
     }
 
     </script>
@@ -446,27 +456,12 @@
       float green_channel = rgb2grey(sample.rgb);
       green = (0.5 * (1.0 - sample.a) + green_channel * sample.a);
 
-      //vec4 blueSample = texture2D(image6, position * vec2(1,-1) + vec2(0,1) );
-      //blue = blueSample.a * rgb2grey(blueSample.rgb) + (0.5 * (1.0 - blueSample.a)) ;
+      vec4 blueSample = texture2D(image6, position * vec2(1,-1) + vec2(0,1) );
+      blue = blueSample.a * rgb2grey(blueSample.rgb) + (0.5 * (1.0 - blueSample.a)) ;
 
       //blue = 0.5;
       vec2 c = vec2( 0.36 + 0.05 * cos(seconds * 120.0 / 60.0 * tau), 0.1);
-      vec2 v = (position * 2.0 - 1.0) * 1.2;
-      float fractal_scale = 0.02;
-      const int max_iterations = 255;
-      int count = max_iterations;
-
-      for ( int i = 0 ; i < max_iterations; i++ ) {
-        v = c + complex_square( v );
-        if ( dot( v, v ) > 4.0 ) {
-          count = i;
-          break;
-        }
-      }
-
-      blue = float( count ) * fractal_scale;
-
-      gl_FragColor.rgba = vec4(red, blue, blue, 1.0);
+      gl_FragColor.rgba = vec4(red, green, blue, 1.0);
 
       float white = (red + green + blue) / 3.0;
       //gl_FragColor.rgba = vec4(red, green, white, 1.0);
@@ -483,6 +478,7 @@
       };
 
       function runAutomata(imageData, w, h) {
+        return 1;
         return imageData;
       }
     </script>
