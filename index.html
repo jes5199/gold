@@ -457,7 +457,7 @@
       green = (0.5 * (1.0 - sample.a) + green_channel * sample.a);
 
       vec4 blueSample = texture2D(image6, position * vec2(1,-1) + vec2(0,1) );
-      blue = blueSample.a * blueSample.b + (0.5 * (1.0 - blueSample.a));
+      blue = blueSample.a * rgb2grey(blueSample.rgb) + (0.5 * (1.0 - blueSample.a));
 
       vec4 rightSample = texture2D(image6, position * vec2(1,-1) + vec2(0,1) + vec2(1.0 / 1024.0, 0.0));
       float right = rightSample.a * rightSample.b + (0.5 * (1.0 - rightSample.a));
@@ -483,17 +483,17 @@
       vec4 downleftSample = texture2D(image6, position * vec2(1,-1) + vec2(0,1) + vec2(-1.0 / 1024.0, -1.0 / 512.0));
       float downleft = downleftSample.a * downleftSample.b + (0.5 * (1.0 - downleftSample.a));
 
-      float score = right + left + up + down + upright + downright + upleft + downleft;
-      if(blue > 0.5) {
-        if(score < 2.0 || score > 4.0) {
-          blue = 0.0;
-        } else {
-          blue = 1.0;
-        }
+      float score = right + left + up + down + upright + downright + upleft + downleft + blue;
+      if(score >= 6.0 && score < 6.5) {
+        blue = 1.0;
+      } else if(score >= 6.5 && score < 7.0) {
+        blue = blue;
+      } else if(score <= 3.5 && score > 3.0) {
+        blue = 0.0;
+      } else if(score <= 3.0 && score > 2.5) {
+        blue = blue;
       } else {
-        if(score >= 3.0 && score < 4.0) {
-          blue = 1.0;
-        }
+        blue = 0.5;
       }
 
       //blue = 0.5;
