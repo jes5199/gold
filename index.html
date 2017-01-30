@@ -484,15 +484,16 @@
       float downleft = downleftSample.a * downleftSample.b + (0.5 * (1.0 - downleftSample.a));
 
       float score = right + left + up + down + upright + downright + upleft + downleft;
-      blue = score / 8.0;
-      if(score >= 1.0 && score < 3.0) {
-        blue = 1.0;
-      }
-      if(score >= 4.0) {
-        blue = 1.0;
-      }
-      if(score >= 5.0) {
-        blue = 0.0;
+      if(blue > 0.5) {
+        if(score < 2.0 || score > 4.0) {
+          blue = 0.0;
+        } else {
+          blue = 1.0;
+        }
+      } else {
+        if(score >= 3.0 && score < 4.0) {
+          blue = 1.0;
+        }
       }
 
       //blue = 0.5;
