@@ -89,10 +89,12 @@
     var ctx;
 
     var main_texture;
+    var time_domain_texture;
+
+    var main_fbo;
+    var time_domain_fbo;
 
     var main_program;
-    var main_fbo;
-
     var display_program;
     var time_domain_program;
     var freq_domain_program;
@@ -112,34 +114,28 @@
 
     scriptNode.onaudioprocess = function (event) {
       var length = event.outputBuffer.length;
-      var height = gl.drawingBufferHeight;
-      var width = gl.drawingBufferWidth;
       var channelData = event.outputBuffer.getChannelData(0);
 
       //if(playbackTimeStart < 0){ playbackTimeStart = event.playbackTime};
       //var seconds = event.playbackTime - playbackTimeStart;
-
-      if(!pixels) {
-        pixels = new Uint8Array(width * height * 4);
-      }
 
       var seconds = frameCount * period;
 
       setUniforms(seconds);
       drawMain();
 
-      gl.readPixels(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+      setFramebuffer(time_domain_fbo, canvas.width, 1);
+      var height = 1;
+      var width = gl.drawingBufferWidth;
+      if(!pixels) {
+        pixels = new Float32Array(width * height * 4);
+      }
 
+      gl.readPixels(0, 0, width, height, gl.RGBA, gl.FLOAT, pixels);
+
+      //console.log(pixels);
       for(n = 0; n < length; n+=1) {
-        var value = 0;
-        for(var c = 0; c < 3; c++) {
-          var accumulator = 0;
-          for(var y = 0; y < height; y++) {
-            accumulator += pixels[((y * width) + n) * 4 + c];
-          }
-          value += accumulator;
-        }
-        channelData[n] = (value / (height * 255 * 3 / 2)) - 1;
+        channelData[n] = pixels[n * 4];
       }
 
       incrementOffsets();
@@ -218,7 +214,7 @@
 
     function start() {
       canvas = document.getElementById("glcanvas");
-      gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+      gl = canvas.getContext("webgl") || canvas.getContext("webgl");
 
       var positions = [
         0, 0,
@@ -258,7 +254,20 @@
       assign_positions(display_program, "a_position", positions);
       gl.useProgram(display_program);
       var imageLocation = gl.getUniformLocation(display_program, "image");
-      gl.uniform1i(imageLocation, i);
+      gl.uniform1i(imageLocation, 6);
+
+      time_domain_texture = makeTimeDomainTexture();
+      time_domain_fbo = gl.createFramebuffer();
+      gl.bindFramebuffer(gl.FRAMEBUFFER, time_domain_fbo);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, time_domain_texture, 0);
+
+      var time_domain_fragment_shader = compile_fragment_shader("time-domain-fragment-shader");
+      time_domain_program = build_program(vertex_shader, time_domain_fragment_shader);
+      assign_positions(time_domain_program, "a_position", positions);
+      gl.useProgram(time_domain_program);
+      imageLocation = gl.getUniformLocation(time_domain_program, "image");
+      gl.uniform1i(gl.getUniformLocation(time_domain_program, "height"), gl.canvas.height);
+      gl.uniform1i(imageLocation, 6);
 
       setupAudio();
       animate();
@@ -319,7 +328,10 @@
     function drawMain() {
       gl.useProgram(main_program);
       setFramebuffer(main_fbo, canvas.width, canvas.height);
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
 
+      gl.useProgram(time_domain_program);
+      setFramebuffer(time_domain_fbo, canvas.width, 1);
       gl.drawArrays(gl.TRIANGLES, 0, 6);
     }
 
@@ -385,6 +397,25 @@
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
 
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, canvas.width, canvas.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+
+      return texture;
+    }
+
+    function makeTimeDomainTexture() {
+      var texture = gl.createTexture();
+      gl.activeTexture(gl.TEXTURE7);
+      gl.bindTexture(gl.TEXTURE_2D, texture);
+
+      // Set up texture so we can render any size image and so we are
+      // working with pixels.
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+
+      gl.getExtension('OES_texture_float');
+      //gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, canvas.width, canvas.height, 0, gl.RGBA32F, gl.FLOAT, null);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, canvas.width, 1, 0, gl.RGBA, gl.FLOAT, null);
 
       return texture;
     }
@@ -619,6 +650,28 @@
     uniform sampler2D image;
     void main() {
       gl_FragColor.rgba = texture2D(image, position);
+    }
+    </script>
+    <script id="time-domain-fragment-shader" type="x-shader/x-fragment">
+    precision highp float;
+
+    varying vec2 position;
+
+    uniform sampler2D image;
+    uniform int height;
+
+    void main() {
+      int acc = 0;
+      vec4 sample;
+
+      for(int i = 0; i < 1024; i++) {
+        if(i < height) {
+          sample = texture2D(image, vec2(position.x, float(i) / float(height)));
+          acc = acc + int(sample.r * 255.0) + int(sample.g * 255.0) + int(sample.b * 255.0);
+        }
+      }
+      float red = float(acc) / (float(height) * 255.0 * 3.0 / 2.0) - 1.0;
+      gl_FragColor.rgba = vec4(red, acc, sample.r, 0.0);
     }
     </script>
     <script id="automataWorker" type="javascript/worker">
