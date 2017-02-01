@@ -11,23 +11,29 @@
     var e1 = 41.20;
     var f1 = 43.65;
     var freq = resonance;
-    var base = freq * 4;
+    var base = freq * 8;
+    //base = 29.97;
     var ntv = [0, base, base * 9/8, base * 81/64, base * 4/3, base * 3/2, base * 27/16, base * 243/128, base * 2]
 
     var string_count = 4;
 
     var patterns = [
-      [ntv[1], ntv[3], ntv[5]],
-      [ntv[4], ntv[5]],
-      [ntv[7], ntv[6], ntv[5], ntv[1]],
-      [ntv[1], ntv[4], ntv[2], ntv[5], ntv[8]],
+    //[ntv[1], ntv[3], ntv[5]],
+    //[ntv[4], ntv[5]],
+    //[ntv[7], ntv[6], ntv[5], ntv[1]],
+    //[ntv[1], ntv[4], ntv[2], ntv[5], ntv[8]],
     ];
     var samplePatterns = [
-      [ntv[1], ntv[3], ntv[5]],
-      [ntv[4], ntv[5]],
-      [ntv[7], ntv[6], ntv[5], ntv[1]],
-      [ntv[1], ntv[4], ntv[2], ntv[5], ntv[8]],
-      [ntv[7], ntv[6], ntv[5], ntv[1]],
+      [ntv[1], ntv[2], ntv[3], ntv[4], ntv[5], ntv[6], ntv[7], ntv[8]],
+    //[ntv[1], ntv[2], ntv[3], ntv[4], ntv[5], ntv[6], ntv[7], ntv[8]],
+    //[ntv[1], ntv[2], ntv[3], ntv[4], ntv[5], ntv[6], ntv[7], ntv[8]],
+    //[ntv[1], ntv[2], ntv[3], ntv[4], ntv[5], ntv[6], ntv[7], ntv[8]],
+    //[ntv[1], ntv[2], ntv[3], ntv[4], ntv[5], ntv[6], ntv[7], ntv[8]],
+    //[ntv[1], ntv[3], ntv[5]],
+    //[ntv[4], ntv[5]],
+    //[ntv[7], ntv[6], ntv[5], ntv[1]],
+    //[ntv[1], ntv[4], ntv[2], ntv[5], ntv[8]],
+    //[ntv[7], ntv[6], ntv[5], ntv[1]],
     ];
 
     var bpm = 60;
@@ -42,8 +48,8 @@
       ntv[1],
       ntv[5],
       ntv[1],
-      ntv[5],
-      ntv[1],
+      ntv[3] / 2,
+      ntv[8],
     ];
 
     var images = [new Image(), new Image(), new Image(), new Image(), new Image(), new Image(1024, 512)];
@@ -58,8 +64,20 @@
       images[3].src = "images/AKWF_hvoice_0008.wav.blob.png"
       images[4].src = "images/AKWF_hvoice_0008.wav.blob.png"
       //images[3].src = "images/319832__kwahmah-02__noisehihattap.wav.png"
-      images[0].src = "images/lion.webp";
       images[5].src = "images/lion.webp";
+      images[0].src = "images/AKWF_hvoice_0008.wav.blob.png"
+      images[0].src = "images/irisgurgle.blob.png";
+      images[1].src = "images/irisgurgle.blob.png";
+      images[2].src = "images/irisgurgle.blob.png";
+      images[3].src = "images/irisgurgle.blob.png";
+      images[4].src = "images/irisgurgle.blob.png";
+      images[5].src = "images/irisgurgle.blob.png";
+      images[0].src = "images/jesse-eee.png";
+      images[1].src = "images/jesse-eee.png";
+      images[2].src = "images/jesse-eee.png";
+      images[3].src = "images/jesse-eee.png";
+      images[4].src = "images/jesse-eee.png";
+      images[4].src = "images/jesse-eee.png";
 
     var pitchesOffsets = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
     var imagesOffsets = [0,0,0,0,0];
@@ -124,13 +142,13 @@
       frameCount += 1;
       for(i = 0; i < pitches.length; i++) {
         pitchesOffsets[i] += period;
-        if(pitches[i] <= 0 || pitchesOffsets[i] > 1024/pitches[i]) {
+        if(pitches[i] <= 0 || pitchesOffsets[i] > 10240/pitches[i]) {
           //pitchesOffsets[i] = 0;
         }
       }
       for(i = 0; i < imagesOffsets.length; i++) {
         imagesOffsets[i] += period;
-        if(imageFrequencies[i] <= 0 || imagesOffsets[i] > 1024/imageFrequencies[i]) {
+        if(imageFrequencies[i] <= 0 || imagesOffsets[i] > 10240/imageFrequencies[i]) {
           imagesOffsets[i] = 0;
         }
       }
@@ -404,14 +422,16 @@
       float green = 0.0;
       float blue = 0.0;
 
-      int shades = 2;//54;
+      int shades = 20;//54;
+
+      float degrader = 0.0;
 
       for(int i = 0; i < 32; i++){
         float pitch_part = mod(position.y * string_count, float(pitch_count));
         if( pitch_part - float(i) >= 0.0 && pitch_part - float(i) < 1.0 ) {
           float vertical_part = pitch_part - float(i);
           float my_offset = pitches_offsets[i] + extra_offset;
-          red = norm(sin((my_offset + 100.0 * tau) * tau * pitches[i]));
+          red = norm(sin((my_offset + pow(2.0, degrader)) * tau * pitches[i]));
           float red_shade = red * float(shades);
           float major_shade = floor(red_shade + 0.5);
           float shade_error = major_shade - red_shade;
@@ -499,7 +519,7 @@
       //blue = 0.5;
       vec2 c = vec2( 0.36 + 0.05 * cos(seconds * 120.0 / 60.0 * tau), 0.1);
       gl_FragColor.rgba = vec4(red, green, blue, 1.0);
-      gl_FragColor.rgba = vec4(blue, blue, blue, 1.0);
+      gl_FragColor.rgba = vec4(green, green, green, 1.0);
 
       float white = (red + green + blue) / 3.0;
       //gl_FragColor.rgba = vec4(red, green, white, 1.0);
