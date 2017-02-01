@@ -91,6 +91,8 @@
     var main_texture;
 
     var main_program;
+    var main_fbo;
+
     var display_program;
     var time_domain_program;
     var freq_domain_program;
@@ -124,7 +126,7 @@
       var seconds = frameCount * period;
 
       setUniforms(seconds);
-      drawGL();
+      drawMain();
 
       gl.readPixels(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
 
@@ -184,7 +186,7 @@
     }
 
     function build_program(vertex_shader, fragment_shader) {
-      program = gl.createProgram();
+      var program = gl.createProgram();
       gl.attachShader(program, vertex_shader);
       gl.attachShader(program, fragment_shader);
       gl.linkProgram(program);
@@ -218,12 +220,6 @@
       canvas = document.getElementById("glcanvas");
       gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
 
-      setup_images();
-
-      var vertex_shader = compile_vertex_shader("vertex-shader");
-      var main_fragment_shader = compile_fragment_shader("main-fragment-shader");
-      main_program = build_program(vertex_shader, main_fragment_shader);
-
       var positions = [
         0, 0,
         1, 1,
@@ -232,19 +228,40 @@
         1, 1,
         1, 0,
       ];
-      assign_positions(main_program, "a_position", positions);
 
-      gl.useProgram(main_program);
+      setup_images();
+
+      var vertex_shader = compile_vertex_shader("vertex-shader");
+      var main_fragment_shader = compile_fragment_shader("main-fragment-shader");
+      main_program = build_program(vertex_shader, main_fragment_shader);
+
+      assign_positions(main_program, "a_position", positions);
 
       setUniforms();
       changeNotes();
       makeTextures();
 
+      main_texture = makeMainTexture();
+
+      main_fbo = gl.createFramebuffer();
+      gl.bindFramebuffer(gl.FRAMEBUFFER, main_fbo);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, main_texture, 0);
+
+      setFramebuffer(main_fbo, canvas.width, canvas.height);
+      //console.log(gl.checkFramebufferStatus(gl.FRAMEBUFFER));
+
       gl.clearColor(0, 0, 0, 0);
       gl.clear(gl.COLOR_BUFFER_BIT);
-      //drawGL();
+
+      var display_fragment_shader = compile_fragment_shader("display-fragment-shader");
+      display_program = build_program(vertex_shader, display_fragment_shader);
+      assign_positions(display_program, "a_position", positions);
+      gl.useProgram(display_program);
+      var imageLocation = gl.getUniformLocation(display_program, "image");
+      gl.uniform1i(imageLocation, i);
 
       setupAudio();
+      animate();
     }
 
     function setupAudio() {
@@ -274,24 +291,43 @@
     }
 
     function setUniforms(seconds = 0) {
-      //console.log(seconds);
-      gl.uniform1fv(gl.getUniformLocation(program, "pitches"), pitches);
-      gl.uniform1i(gl.getUniformLocation(program, "pitch_count"), 32);
-      gl.uniform1fv(gl.getUniformLocation(program, "pitches_offsets"), pitchesOffsets);
-      gl.uniform2f(gl.getUniformLocation(program, "u_resolution"), gl.canvas.width, gl.canvas.height);
+      gl.useProgram(main_program);
 
-      gl.uniform1f(gl.getUniformLocation(program, "sample_rate"), audioCtx.sampleRate);
+      gl.uniform1fv(gl.getUniformLocation(main_program, "pitches"), pitches);
+      gl.uniform1i(gl.getUniformLocation(main_program, "pitch_count"), 32);
+      gl.uniform1fv(gl.getUniformLocation(main_program, "pitches_offsets"), pitchesOffsets);
+      gl.uniform2f(gl.getUniformLocation(main_program, "u_resolution"), gl.canvas.width, gl.canvas.height);
 
-      gl.uniform1f(gl.getUniformLocation(program, "offset_seconds"), seconds);
+      gl.uniform1f(gl.getUniformLocation(main_program, "sample_rate"), audioCtx.sampleRate);
 
-      gl.uniform1f(gl.getUniformLocation(program, "string_count"), string_count);
+      gl.uniform1f(gl.getUniformLocation(main_program, "offset_seconds"), seconds);
 
-      gl.uniform1fv(gl.getUniformLocation(program, "image_freqs"), imageFrequencies);
-      gl.uniform1fv(gl.getUniformLocation(program, "images_offsets"), imagesOffsets);
+      gl.uniform1f(gl.getUniformLocation(main_program, "string_count"), string_count);
+
+      gl.uniform1fv(gl.getUniformLocation(main_program, "image_freqs"), imageFrequencies);
+      gl.uniform1fv(gl.getUniformLocation(main_program, "images_offsets"), imagesOffsets);
     }
 
-    function drawGL() {
+    function setFramebuffer(fbo, width, height) {
+      // make this the framebuffer we are rendering to.
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+
+      // Tell webgl the viewport setting needed for framebuffer.
+      gl.viewport(0, 0, width, height);
+    }
+
+    function drawMain() {
+      gl.useProgram(main_program);
+      setFramebuffer(main_fbo, canvas.width, canvas.height);
+
       gl.drawArrays(gl.TRIANGLES, 0, 6);
+    }
+
+    function animate() {
+      setFramebuffer(null, canvas.width, canvas.height);
+      gl.useProgram(display_program);
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+      requestAnimationFrame(animate);
     }
 
     function automataTick() {
@@ -336,8 +372,9 @@
       setTimeout(changeNotes, javascriptTimeout);
     }
 
-    function createAndSetupTexture(gl) {
+    function makeMainTexture() {
       var texture = gl.createTexture();
+      gl.activeTexture(gl.TEXTURE6);
       gl.bindTexture(gl.TEXTURE_2D, texture);
 
       // Set up texture so we can render any size image and so we are
@@ -346,6 +383,8 @@
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, canvas.width, canvas.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
 
       return texture;
     }
@@ -361,7 +400,7 @@
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, images[i]);
-        var imageLocation = gl.getUniformLocation(program, "image" + (i+1));
+        var imageLocation = gl.getUniformLocation(main_program, "image" + (i+1));
         gl.uniform1i(imageLocation, i);
       }
 
@@ -570,6 +609,16 @@
 
       float white = (red + green + blue) / 3.0;
       //gl_FragColor.rgba = vec4(red, green, white, 1.0);
+    }
+    </script>
+    <script id="display-fragment-shader" type="x-shader/x-fragment">
+    precision highp float;
+
+    varying vec2 position;
+
+    uniform sampler2D image;
+    void main() {
+      gl_FragColor.rgba = texture2D(image, position);
     }
     </script>
     <script id="automataWorker" type="javascript/worker">
