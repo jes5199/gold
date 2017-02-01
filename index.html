@@ -8,6 +8,9 @@
     var period = 1024 / 44100; // seconds
     var resonance = 44100 / 1024; // hz
 
+    var main_width = 1024;
+    var main_height = 512;
+
     var e1 = 41.20;
     var f1 = 43.65;
     var freq = resonance;
@@ -97,6 +100,7 @@
     var main_program;
     var display_program;
     var time_domain_program;
+    var time_domain_display_program;
     var freq_domain_program;
 
     console.log( audioCtx.sampleRate );
@@ -124,9 +128,9 @@
       setUniforms(seconds);
       drawMain();
 
-      setFramebuffer(time_domain_fbo, canvas.width, 1);
+      setFramebuffer(time_domain_fbo, main_width, 1);
       var height = 1;
-      var width = gl.drawingBufferWidth;
+      var width = main_width;
       if(!pixels) {
         pixels = new Float32Array(width * height * 4);
       }
@@ -243,7 +247,7 @@
       gl.bindFramebuffer(gl.FRAMEBUFFER, main_fbo);
       gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, main_texture, 0);
 
-      setFramebuffer(main_fbo, canvas.width, canvas.height);
+      setFramebuffer(main_fbo, main_width, main_height);
       //console.log(gl.checkFramebufferStatus(gl.FRAMEBUFFER));
 
       gl.clearColor(0, 0, 0, 0);
@@ -266,8 +270,15 @@
       assign_positions(time_domain_program, "a_position", positions);
       gl.useProgram(time_domain_program);
       imageLocation = gl.getUniformLocation(time_domain_program, "image");
-      gl.uniform1i(gl.getUniformLocation(time_domain_program, "height"), gl.canvas.height);
       gl.uniform1i(imageLocation, 6);
+      gl.uniform1i(gl.getUniformLocation(time_domain_program, "height"), main_height);
+
+      var time_domain_display_fragment_shader = compile_fragment_shader("time-domain-display-fragment-shader");
+      time_domain_display_program = build_program(vertex_shader, time_domain_display_fragment_shader);
+      assign_positions(time_domain_display_program, "a_position", positions);
+      gl.useProgram(time_domain_display_program);
+      imageLocation = gl.getUniformLocation(time_domain_display_program, "image");
+      gl.uniform1i(imageLocation, 7);
 
       setupAudio();
       animate();
@@ -305,7 +316,7 @@
       gl.uniform1fv(gl.getUniformLocation(main_program, "pitches"), pitches);
       gl.uniform1i(gl.getUniformLocation(main_program, "pitch_count"), 32);
       gl.uniform1fv(gl.getUniformLocation(main_program, "pitches_offsets"), pitchesOffsets);
-      gl.uniform2f(gl.getUniformLocation(main_program, "u_resolution"), gl.canvas.width, gl.canvas.height);
+      gl.uniform2f(gl.getUniformLocation(main_program, "u_resolution"), main_width, main_height);
 
       gl.uniform1f(gl.getUniformLocation(main_program, "sample_rate"), audioCtx.sampleRate);
 
@@ -317,28 +328,33 @@
       gl.uniform1fv(gl.getUniformLocation(main_program, "images_offsets"), imagesOffsets);
     }
 
-    function setFramebuffer(fbo, width, height) {
+    function setFramebuffer(fbo, width, height, offset_x = 0, offset_y = 0) {
       // make this the framebuffer we are rendering to.
       gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
 
       // Tell webgl the viewport setting needed for framebuffer.
-      gl.viewport(0, 0, width, height);
+      gl.viewport(offset_x, offset_y, width, height);
     }
 
     function drawMain() {
       gl.useProgram(main_program);
-      setFramebuffer(main_fbo, canvas.width, canvas.height);
+      setFramebuffer(main_fbo, main_width, main_height);
       gl.drawArrays(gl.TRIANGLES, 0, 6);
 
       gl.useProgram(time_domain_program);
-      setFramebuffer(time_domain_fbo, canvas.width, 1);
+      setFramebuffer(time_domain_fbo, main_width, 1);
       gl.drawArrays(gl.TRIANGLES, 0, 6);
     }
 
     function animate() {
-      setFramebuffer(null, canvas.width, canvas.height);
+      setFramebuffer(null, main_width, main_height, 0, 100);
       gl.useProgram(display_program);
       gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+      setFramebuffer(null, main_width, 100, 0, 0);
+      gl.useProgram(time_domain_display_program);
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+
       requestAnimationFrame(animate);
     }
 
@@ -396,7 +412,7 @@
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
 
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, canvas.width, canvas.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, main_width, main_height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
 
       return texture;
     }
@@ -414,8 +430,8 @@
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
 
       gl.getExtension('OES_texture_float');
-      //gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, canvas.width, canvas.height, 0, gl.RGBA32F, gl.FLOAT, null);
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, canvas.width, 1, 0, gl.RGBA, gl.FLOAT, null);
+      //gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, main_width, main_height, 0, gl.RGBA32F, gl.FLOAT, null);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, main_width, 1, 0, gl.RGBA, gl.FLOAT, null);
 
       return texture;
     }
@@ -671,7 +687,35 @@
         }
       }
       float red = float(acc) / (float(height) * 255.0 * 3.0 / 2.0) - 1.0;
-      gl_FragColor.rgba = vec4(red, acc, sample.r, 0.0);
+      gl_FragColor.rgba = vec4(red, height, red, red);
+    }
+    </script>
+    <script id="time-domain-display-fragment-shader" type="x-shader/x-fragment">
+    precision highp float;
+
+    varying vec2 position;
+
+    uniform sampler2D image;
+
+    void main() {
+      int acc = 0;
+      vec4 sample;
+      float color = 0.0;
+
+      sample = texture2D(image, vec2(position.x, 1));
+      float y = (2.0 * position.y) - 1.0;
+
+      if(y > sample.r) {
+        if( sample.r < 0.0 && y < 0.0){
+          color = 1.0;
+        }
+      } else {
+        if( sample.r > 0.0 && y > 0.0){ 
+          color = 1.0;
+        }
+      }
+
+      gl_FragColor.rgba = vec4(0.0, color, 0.0, 1.0);
     }
     </script>
     <script id="automataWorker" type="javascript/worker">
@@ -691,17 +735,28 @@
     </script>
 
     <style>
-      #glcanvas {
+      #container {
+        width: 1024px;
+        height: 512px;
+        position:absolute;
         margin: auto;
-        position: absolute;
         top: 0; bottom: 0; left: 0; right: 0;
       }
-      body {background: #808080}
+      canvas {
+        border: 0px solid red;
+      }
+      body {
+        background: #808080;
+        width: 100%;
+        height: 100%;
+      }
     </style>
   </head>
   <body>
     <body onload="start()" >
-      <canvas id="glcanvas" width="1024" height="512"></canvas>
+      <div id="container">
+        <canvas id="glcanvas" width="1024" height="612"></canvas>
+      </div>
     </body>
   </body>
 </html>
