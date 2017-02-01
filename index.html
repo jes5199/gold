@@ -88,7 +88,12 @@
     var gl;
     var ctx;
 
-    var program;
+    var main_texture;
+
+    var main_program;
+    var display_program;
+    var time_domain_program;
+    var freq_domain_program;
 
     console.log( audioCtx.sampleRate );
 
@@ -154,6 +159,52 @@
       }
     }
 
+    function compile_vertex_shader(id) {
+      var vertex_shader = gl.createShader(gl.VERTEX_SHADER);
+      gl.shaderSource(vertex_shader, document.getElementById(id).text);
+      gl.compileShader(vertex_shader);
+
+      var success = gl.getShaderParameter(vertex_shader, gl.COMPILE_STATUS);
+      if (!success) {
+        console.log(gl.getShaderInfoLog(vertex_shader));
+      }
+      return vertex_shader;
+    }
+
+    function compile_fragment_shader(id){
+      var fragment_shader = gl.createShader(gl.FRAGMENT_SHADER);
+      gl.shaderSource(fragment_shader, document.getElementById(id).text);
+      gl.compileShader(fragment_shader);
+
+      var success = gl.getShaderParameter(fragment_shader, gl.COMPILE_STATUS);
+      if (!success) {
+        console.log(gl.getShaderInfoLog(fragment_shader));
+      }
+      return fragment_shader;
+    }
+
+    function build_program(vertex_shader, fragment_shader) {
+      program = gl.createProgram();
+      gl.attachShader(program, vertex_shader);
+      gl.attachShader(program, fragment_shader);
+      gl.linkProgram(program);
+      var success = gl.getProgramParameter(program, gl.LINK_STATUS);
+      if (!success) {
+        console.log(gl.getProgramInfoLog(program));
+      }
+      return program;
+    }
+
+    function assign_positions(program, attribute, positions) {
+      var positionAttributeLocation = gl.getAttribLocation(program, attribute);
+      var positionBuffer = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
+      gl.enableVertexAttribArray(positionAttributeLocation);
+      gl.vertexAttribPointer(
+              positionAttributeLocation, 2, gl.FLOAT, false, 0, 0)
+    }
+
     function start() {
       canvas = document.getElementById("glcanvas");
       gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
@@ -165,36 +216,11 @@
         }
       }
 
-      var vertex_shader = gl.createShader(gl.VERTEX_SHADER);
-      gl.shaderSource(vertex_shader, document.getElementById("vertex-shader").text);
-      gl.compileShader(vertex_shader);
+      var vertex_shader = compile_vertex_shader("vertex-shader");
+      var main_fragment_shader = compile_fragment_shader("main-fragment-shader");
 
-      var success = gl.getShaderParameter(vertex_shader, gl.COMPILE_STATUS);
-      if (!success) {
-        console.log(gl.getShaderInfoLog(vertex_shader));
-      }
+      main_program = build_program(vertex_shader, main_fragment_shader);
 
-      var fragment_shader = gl.createShader(gl.FRAGMENT_SHADER);
-      gl.shaderSource(fragment_shader, document.getElementById("fragment-shader").text);
-      gl.compileShader(fragment_shader);
-
-      var success = gl.getShaderParameter(fragment_shader, gl.COMPILE_STATUS);
-      if (!success) {
-        console.log(gl.getShaderInfoLog(fragment_shader));
-      }
-
-      program = gl.createProgram();
-      gl.attachShader(program, vertex_shader);
-      gl.attachShader(program, fragment_shader);
-      gl.linkProgram(program);
-      var success = gl.getProgramParameter(program, gl.LINK_STATUS);
-      if (!success) {
-        console.log(gl.getProgramInfoLog(program));
-      }
-
-      var positionAttributeLocation = gl.getAttribLocation(program, "a_position");
-      var positionBuffer = gl.createBuffer();
-      gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
       var positions = [
         0, 0,
         1, 1,
@@ -203,13 +229,9 @@
         1, 1,
         1, 0,
       ];
-      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
-      gl.enableVertexAttribArray(positionAttributeLocation);
-      gl.vertexAttribPointer(
-              positionAttributeLocation, 2, gl.FLOAT, false, 0, 0)
+      assign_positions(main_program, "a_position", positions);
 
-
-      gl.useProgram(program);
+      gl.useProgram(main_program);
 
       setUniforms();
       changeNotes();
@@ -355,7 +377,7 @@
         gl_Position = 2.0 * a_position - 1.0;
       }
     </script>
-    <script id="fragment-shader" type="x-shader/x-fragment">
+    <script id="main-fragment-shader" type="x-shader/x-fragment">
     precision highp float;
 
     varying vec2 position;
