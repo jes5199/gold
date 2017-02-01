@@ -205,20 +205,23 @@
               positionAttributeLocation, 2, gl.FLOAT, false, 0, 0)
     }
 
-    function start() {
-      canvas = document.getElementById("glcanvas");
-      gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
-
+    function setup_images() {
       for(var i = 0; i < images.length; i++){
         if(! images[i].src) {
           images[i].src = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
           images[i].onload = updateTextures;
         }
       }
+    }
+
+    function start() {
+      canvas = document.getElementById("glcanvas");
+      gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+
+      setup_images();
 
       var vertex_shader = compile_vertex_shader("vertex-shader");
       var main_fragment_shader = compile_fragment_shader("main-fragment-shader");
-
       main_program = build_program(vertex_shader, main_fragment_shader);
 
       var positions = [
@@ -241,6 +244,10 @@
       gl.clear(gl.COLOR_BUFFER_BIT);
       //drawGL();
 
+      setupAudio();
+    }
+
+    function setupAudio() {
       var gainNode = audioCtx.createGain();
       gainNode.gain.value = 20.0;
 
@@ -252,6 +259,10 @@
       scriptNode.connect(filterNode);
       filterNode.connect(gainNode);
       gainNode.connect(audioCtx.destination);
+    }
+
+    function setupWorker(){
+      // currently busted
 
       var blob = new Blob([
           document.querySelector('#automataWorker').textContent
@@ -259,7 +270,7 @@
       automataWorker = new Worker(window.URL.createObjectURL(blob));
       automataWorker.onmessage = receiveAutomata;
 
-      //automataTick();
+      automataTick();
     }
 
     function setUniforms(seconds = 0) {
@@ -323,6 +334,20 @@
 
       //pitches.sort(function(a,b){return a-b}).reverse();
       setTimeout(changeNotes, javascriptTimeout);
+    }
+
+    function createAndSetupTexture(gl) {
+      var texture = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, texture);
+
+      // Set up texture so we can render any size image and so we are
+      // working with pixels.
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+
+      return texture;
     }
 
     function makeTextures() {
