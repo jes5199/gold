@@ -14,7 +14,7 @@
     var e1 = 41.20;
     var f1 = 43.65;
     var freq = resonance;
-    var base = freq * 8;
+    var base = freq * 1;
     //base = 29.97;
     var ntv = [0, base, base * 9/8, base * 81/64, base * 4/3, base * 3/2, base * 27/16, base * 243/128, base * 2]
 
@@ -28,7 +28,6 @@
     //[ntv[1], ntv[4], ntv[2], ntv[5], ntv[8]],
     ];
     var samplePatterns = [
-      [ntv[1], ntv[8]],
       [ntv[1], ntv[2], ntv[3], ntv[4], ntv[5], ntv[6], ntv[7], ntv[8]],
     //[ntv[1], ntv[2], ntv[3], ntv[4], ntv[5], ntv[6], ntv[7], ntv[8]],
     //[ntv[1], ntv[2], ntv[3], ntv[4], ntv[5], ntv[6], ntv[7], ntv[8]],
@@ -712,12 +711,22 @@
       float freq = position.y * 1024.0;
       float phase = position.x;
 
-      for(int i = 0; i < 142; i++) {
-        float pos = mod((float(i) + phase) * freq, 1024.0);
-        sample = texture2D(image, vec2(pos / 1024.0, 1));
-        acc += sample.r;
+      float all = 0.0;
+      for(int i = 0; i < 1024; i++) {
+        sample = texture2D(image, vec2(float(i) / 1024.0, 0));
+        all = all + sample.r;
       }
-      color = acc / 10.0;
+      float avg = all / 1024.0;
+
+      for(int i = 0; i < 1024; i++) {
+        if(i < int(freq * floor(1024.0 / freq))) {
+          float pos = mod((float(i) + phase) * freq, 1024.0);
+          sample = texture2D(image, vec2(pos / 1024.0, 0));
+          acc += sample.r - avg;
+        }
+      }
+
+      color = acc;
 
       gl_FragColor.rgba = vec4(color, 0.0, 0.0, 1.0);
     }
