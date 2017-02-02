@@ -19,6 +19,7 @@
     var ntv = [0, base, base * 9/8, base * 81/64, base * 4/3, base * 3/2, base * 27/16, base * 243/128, base * 2]
 
     var string_count = 4;
+    var image_count = 1;
 
     var patterns = [
     //[ntv[1], ntv[3], ntv[5]],
@@ -27,6 +28,7 @@
     //[ntv[1], ntv[4], ntv[2], ntv[5], ntv[8]],
     ];
     var samplePatterns = [
+      [ntv[1], ntv[8]],
       [ntv[1], ntv[2], ntv[3], ntv[4], ntv[5], ntv[6], ntv[7], ntv[8]],
     //[ntv[1], ntv[2], ntv[3], ntv[4], ntv[5], ntv[6], ntv[7], ntv[8]],
     //[ntv[1], ntv[2], ntv[3], ntv[4], ntv[5], ntv[6], ntv[7], ntv[8]],
@@ -67,20 +69,20 @@
       images[3].src = "images/AKWF_hvoice_0008.wav.blob.png"
       images[4].src = "images/AKWF_hvoice_0008.wav.blob.png"
       //images[3].src = "images/319832__kwahmah-02__noisehihattap.wav.png"
-      images[5].src = "images/lion.webp";
+      //images[5].src = "images/lion.webp";
       images[0].src = "images/AKWF_hvoice_0008.wav.blob.png"
       images[0].src = "images/irisgurgle.blob.png";
       images[1].src = "images/irisgurgle.blob.png";
       images[2].src = "images/irisgurgle.blob.png";
       images[3].src = "images/irisgurgle.blob.png";
       images[4].src = "images/irisgurgle.blob.png";
-      images[5].src = "images/irisgurgle.blob.png";
+      //images[5].src = "images/irisgurgle.blob.png";
       images[0].src = "images/jesse-eee.png";
       images[1].src = "images/jesse-eee.png";
       images[2].src = "images/jesse-eee.png";
       images[3].src = "images/jesse-eee.png";
       images[4].src = "images/jesse-eee.png";
-      images[5].src = "images/jesse-eee.png";
+      //images[5].src = "images/jesse-eee.png";
 
     var pitchesOffsets = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
     var imagesOffsets = [0,0,0,0,0];
@@ -101,7 +103,7 @@
     var display_program;
     var time_domain_program;
     var time_domain_display_program;
-    var freq_domain_program;
+    var freq_domain_display_program;
 
     console.log( audioCtx.sampleRate );
 
@@ -280,6 +282,13 @@
       imageLocation = gl.getUniformLocation(time_domain_display_program, "image");
       gl.uniform1i(imageLocation, 7);
 
+      var freq_domain_display_fragment_shader = compile_fragment_shader("freq-domain-display-fragment-shader");
+      freq_domain_display_program = build_program(vertex_shader, freq_domain_display_fragment_shader);
+      assign_positions(freq_domain_display_program, "a_position", positions);
+      gl.useProgram(freq_domain_display_program);
+      imageLocation = gl.getUniformLocation(freq_domain_display_program, "image");
+      gl.uniform1i(imageLocation, 7);
+
       setupAudio();
       animate();
     }
@@ -323,6 +332,7 @@
       gl.uniform1f(gl.getUniformLocation(main_program, "offset_seconds"), seconds);
 
       gl.uniform1f(gl.getUniformLocation(main_program, "string_count"), string_count);
+      gl.uniform1f(gl.getUniformLocation(main_program, "image_bands"), image_count);
 
       gl.uniform1fv(gl.getUniformLocation(main_program, "image_freqs"), imageFrequencies);
       gl.uniform1fv(gl.getUniformLocation(main_program, "images_offsets"), imagesOffsets);
@@ -353,6 +363,10 @@
 
       setFramebuffer(null, main_width, 100, 0, 0);
       gl.useProgram(time_domain_display_program);
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+      setFramebuffer(null, 100, main_height + 100, main_width, 0);
+      gl.useProgram(freq_domain_display_program);
       gl.drawArrays(gl.TRIANGLES, 0, 6);
 
       requestAnimationFrame(animate);
@@ -510,6 +524,7 @@
 
     uniform sampler2D image6;
 
+    uniform float image_bands;
     uniform float image_freqs[5];
     uniform float images_offsets[5];
     const float pi = acos(-1.0);
@@ -579,7 +594,6 @@
         }
       }
 
-      float image_bands = 5.0;
       float image_band_num = floor(position.y * image_bands);
       float image_vertical_offset = (image_band_num / image_bands);
       float image_y = 1.0 - (position.y - image_vertical_offset) * image_bands;
@@ -613,7 +627,7 @@
 
       vec4 blueSample = texture2D(image6, position * vec2(1,1.0 + sin(seconds) * 0.5) + vec2(0,0) );
       blue = blueSample.a * rgb2grey(blueSample.rgb) + (0.5 * (1.0 - blueSample.a));
-      blue = (blue + blueSample.b) / 2.0;
+      //blue = (blue + blueSample.b) / 2.0;
 
       vec2 c = vec2( 0.36 + 0.05 * cos(seconds * 120.0 / 60.0 * tau), 0.1);
       gl_FragColor.rgba = vec4(red, green, blue, 1.0);
@@ -683,6 +697,31 @@
       gl_FragColor.rgba = vec4(0.0, color, 0.0, 1.0);
     }
     </script>
+    <script id="freq-domain-display-fragment-shader" type="x-shader/x-fragment">
+    precision highp float;
+
+    varying vec2 position;
+
+    uniform sampler2D image;
+
+    void main() {
+      float acc = 0.0;
+      vec4 sample;
+      float color = 0.0;
+
+      float freq = position.y * 1024.0;
+      float phase = position.x;
+
+      for(int i = 0; i < 142; i++) {
+        float pos = mod((float(i) + phase) * freq, 1024.0);
+        sample = texture2D(image, vec2(pos / 1024.0, 1));
+        acc += sample.r;
+      }
+      color = acc / 10.0;
+
+      gl_FragColor.rgba = vec4(color, 0.0, 0.0, 1.0);
+    }
+    </script>
     <script id="automataWorker" type="javascript/worker">
       self.onmessage = function(e) {
         var imageData, w, h;
@@ -720,7 +759,7 @@
   <body>
     <body onload="start()" >
       <div id="container">
-        <canvas id="glcanvas" width="1024" height="612"></canvas>
+        <canvas id="glcanvas" width="1124" height="612"></canvas>
       </div>
     </body>
   </body>
