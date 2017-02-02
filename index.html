@@ -16,28 +16,27 @@
     var e1 = 41.20;
     var f1 = 43.65;
     var freq = resonance;
-    var base = freq * 5;
+    var base = freq * 3.0;
     //base = 29.97;
     var ntv = [0, base, base * 9/8, base * 81/64, base * 4/3, base * 3/2, base * 27/16, base * 243/128, base * 2]
 
-    var string_count = 5;
+    var string_count = 4;
     var image_count = 3;
 
     var patterns = [
       [ntv[1], ntv[5], ntv[5]],
       [ntv[3], ntv[1], ntv[5]],
       [ntv[1], ntv[5], ntv[5]],
+      [ntv[1], ntv[2], ntv[3], ntv[4], ntv[5], ntv[6], ntv[7], ntv[8]],
       [ntv[3], ntv[1], ntv[5]],
-      [ntv[1], ntv[5], ntv[5]],
     //[ntv[4], ntv[5]],
     //[ntv[7], ntv[6], ntv[5], ntv[1]],
     //[ntv[1], ntv[4], ntv[2], ntv[5], ntv[8]],
     ];
     var samplePatterns = [
       [ntv[1], ntv[2], ntv[3], ntv[4], ntv[5], ntv[6], ntv[7], ntv[8]],
-      [ntv[1], ntv[2], ntv[3], ntv[4], ntv[5], ntv[6], ntv[7], ntv[8]],
-      [ntv[1], ntv[2], ntv[3], ntv[4], ntv[5], ntv[6], ntv[7], ntv[8]],
-      [ntv[1], ntv[2], ntv[3], ntv[4], ntv[5], ntv[6], ntv[7], ntv[8]],
+      [ntv[8], ntv[8], ntv[6], ntv[6], ntv[0], ntv[0], ntv[0], ntv[0]],
+      [ntv[8], ntv[8], ntv[8], ntv[8], ntv[0], ntv[0], ntv[0], ntv[0]],
     //[ntv[1], ntv[2], ntv[3], ntv[4], ntv[5], ntv[6], ntv[7], ntv[8]],
     //[ntv[1], ntv[2], ntv[3], ntv[4], ntv[5], ntv[6], ntv[7], ntv[8]],
     //[ntv[1], ntv[2], ntv[3], ntv[4], ntv[5], ntv[6], ntv[7], ntv[8]],
@@ -76,7 +75,6 @@
       images[2].src = "images/AKWF_hvoice_0008.wav.blob.png"
       images[3].src = "images/AKWF_hvoice_0008.wav.blob.png"
       images[4].src = "images/AKWF_hvoice_0008.wav.blob.png"
-      //images[3].src = "images/319832__kwahmah-02__noisehihattap.wav.png"
       images[5].src = "images/lion.webp";
       images[0].src = "images/AKWF_hvoice_0008.wav.blob.png"
       images[0].src = "images/irisgurgle.blob.png";
@@ -86,11 +84,13 @@
       images[4].src = "images/irisgurgle.blob.png";
       images[5].src = "images/irisgurgle.blob.png";
       images[0].src = "images/jesse-eee.png";
-      images[1].src = "images/jesse-eee.png";
-      images[2].src = "images/jesse-eee.png";
+      images[1].src = "images/jesse-aaa.png";
+      //images[2].src = "images/jesse-eee.png";
       images[3].src = "images/jesse-eee.png";
       images[4].src = "images/jesse-eee.png";
       //images[5].src = "images/jesse-eee.png";
+      //images[5].src = "images/lion.webp";
+      //images[5].src = "images/AKWF_vgame_0070.wav.blob.png";
 
     var pitchesOffsets = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
     var imagesOffsets = [0,0,0,0,0];
@@ -637,7 +637,7 @@
       float green = 0.0;
       float blue = 0.0;
 
-      int shades = 20;//54;
+      int shades = 2;//54;
 
       float degrader = 0.0;
 
@@ -690,7 +690,7 @@
       float green_channel = rgb2grey(sample.rgb);
       green = (0.5 * (1.0 - sample.a) + green_channel * sample.a);
 
-      vec4 blueSample = texture2D(image6, position * vec2(1,-1.0 + sin(seconds / 60.0 * bpm * pi) * 1.5) + vec2(0,1) );
+      vec4 blueSample = texture2D(image6, (position * vec2(1,-1.0) + vec2(0,1)));
       blue = blueSample.a * rgb2grey(blueSample.rgb) + (0.5 * (1.0 - blueSample.a));
       //blue = (blue + blueSample.b) / 2.0;
 
