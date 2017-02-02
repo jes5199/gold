@@ -11,23 +11,32 @@
     var main_width = 1024;
     var main_height = 512;
 
+    var fftSize = 2 ** 12;
+
     var e1 = 41.20;
     var f1 = 43.65;
     var freq = resonance;
-    var base = freq * 1;
+    var base = freq * 5;
     //base = 29.97;
     var ntv = [0, base, base * 9/8, base * 81/64, base * 4/3, base * 3/2, base * 27/16, base * 243/128, base * 2]
 
-    var string_count = 4;
-    var image_count = 1;
+    var string_count = 5;
+    var image_count = 3;
 
     var patterns = [
-    //[ntv[1], ntv[3], ntv[5]],
+      [ntv[1], ntv[5], ntv[5]],
+      [ntv[3], ntv[1], ntv[5]],
+      [ntv[1], ntv[5], ntv[5]],
+      [ntv[3], ntv[1], ntv[5]],
+      [ntv[1], ntv[5], ntv[5]],
     //[ntv[4], ntv[5]],
     //[ntv[7], ntv[6], ntv[5], ntv[1]],
     //[ntv[1], ntv[4], ntv[2], ntv[5], ntv[8]],
     ];
     var samplePatterns = [
+      [ntv[1], ntv[2], ntv[3], ntv[4], ntv[5], ntv[6], ntv[7], ntv[8]],
+      [ntv[1], ntv[2], ntv[3], ntv[4], ntv[5], ntv[6], ntv[7], ntv[8]],
+      [ntv[1], ntv[2], ntv[3], ntv[4], ntv[5], ntv[6], ntv[7], ntv[8]],
       [ntv[1], ntv[2], ntv[3], ntv[4], ntv[5], ntv[6], ntv[7], ntv[8]],
     //[ntv[1], ntv[2], ntv[3], ntv[4], ntv[5], ntv[6], ntv[7], ntv[8]],
     //[ntv[1], ntv[2], ntv[3], ntv[4], ntv[5], ntv[6], ntv[7], ntv[8]],
@@ -40,7 +49,7 @@
     //[ntv[7], ntv[6], ntv[5], ntv[1]],
     ];
 
-    var bpm = 60;
+    var bpm = 140;
 
     var pixels;
     var pitches = [0., 0., 0., 0.0, 0, 0, 0, 0,
@@ -68,14 +77,14 @@
       images[3].src = "images/AKWF_hvoice_0008.wav.blob.png"
       images[4].src = "images/AKWF_hvoice_0008.wav.blob.png"
       //images[3].src = "images/319832__kwahmah-02__noisehihattap.wav.png"
-      //images[5].src = "images/lion.webp";
+      images[5].src = "images/lion.webp";
       images[0].src = "images/AKWF_hvoice_0008.wav.blob.png"
       images[0].src = "images/irisgurgle.blob.png";
       images[1].src = "images/irisgurgle.blob.png";
       images[2].src = "images/irisgurgle.blob.png";
       images[3].src = "images/irisgurgle.blob.png";
       images[4].src = "images/irisgurgle.blob.png";
-      //images[5].src = "images/irisgurgle.blob.png";
+      images[5].src = "images/irisgurgle.blob.png";
       images[0].src = "images/jesse-eee.png";
       images[1].src = "images/jesse-eee.png";
       images[2].src = "images/jesse-eee.png";
@@ -94,9 +103,12 @@
 
     var main_texture;
     var time_domain_texture;
+    var long_time_domain_texture;
+    var longTimeMultiple = 2;
 
     var main_fbo;
     var time_domain_fbo;
+    var long_time_domain_fbo;
 
     var main_program;
     var display_program;
@@ -107,6 +119,9 @@
     console.log( audioCtx.sampleRate );
 
     var glTextures = [];
+
+    var analyserNode;
+    var fftArray;
 
     var automataWorker;
     var automataImageData;
@@ -261,10 +276,15 @@
       var imageLocation = gl.getUniformLocation(display_program, "image");
       gl.uniform1i(imageLocation, 6);
 
-      time_domain_texture = makeTimeDomainTexture();
+      time_domain_texture = makeTimeDomainTexture(gl.TEXTURE7, main_width);
       time_domain_fbo = gl.createFramebuffer();
       gl.bindFramebuffer(gl.FRAMEBUFFER, time_domain_fbo);
       gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, time_domain_texture, 0);
+
+    //long_time_domain_texture = makeTimeDomainTexture(gl.TEXTURE8, main_width * longTimeMultiple);
+    //long_time_domain_fbo = gl.createFramebuffer();
+    //gl.bindFramebuffer(gl.FRAMEBUFFER, long_time_domain_fbo);
+    //gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, long_time_domain_texture, 0);
 
       var time_domain_fragment_shader = compile_fragment_shader("time-domain-fragment-shader");
       time_domain_program = build_program(vertex_shader, time_domain_fragment_shader);
@@ -273,6 +293,8 @@
       imageLocation = gl.getUniformLocation(time_domain_program, "image");
       gl.uniform1i(imageLocation, 6);
       gl.uniform1i(gl.getUniformLocation(time_domain_program, "height"), main_height);
+
+      fft_texture = makeFftTexture();
 
       var time_domain_display_fragment_shader = compile_fragment_shader("time-domain-display-fragment-shader");
       time_domain_display_program = build_program(vertex_shader, time_domain_display_fragment_shader);
@@ -286,7 +308,7 @@
       assign_positions(freq_domain_display_program, "a_position", positions);
       gl.useProgram(freq_domain_display_program);
       imageLocation = gl.getUniformLocation(freq_domain_display_program, "image");
-      gl.uniform1i(imageLocation, 7);
+      gl.uniform1i(imageLocation, 8);
 
       setupAudio();
       animate();
@@ -301,9 +323,14 @@
       filterNode.frequency = 100;
       filterNode.Q = 1.0;
 
+      analyserNode = audioCtx.createAnalyser();
+      analyserNode.fftSize = fftSize;
+      fftArray = new Uint8Array(analyserNode.frequencyBinCount);
+
       scriptNode.connect(filterNode);
       filterNode.connect(gainNode);
-      gainNode.connect(audioCtx.destination);
+      gainNode.connect(analyserNode);
+      analyserNode.connect(audioCtx.destination);
     }
 
     function setupWorker(){
@@ -333,6 +360,8 @@
       gl.uniform1f(gl.getUniformLocation(main_program, "string_count"), string_count);
       gl.uniform1f(gl.getUniformLocation(main_program, "image_bands"), image_count);
 
+      gl.uniform1f(gl.getUniformLocation(main_program, "bpm"), bpm);
+
       gl.uniform1fv(gl.getUniformLocation(main_program, "image_freqs"), imageFrequencies);
       gl.uniform1fv(gl.getUniformLocation(main_program, "images_offsets"), imagesOffsets);
     }
@@ -345,6 +374,7 @@
       gl.viewport(offset_x, offset_y, width, height);
     }
 
+    var drawLongTimePart = 0;
     function drawMain() {
       gl.useProgram(main_program);
       setFramebuffer(main_fbo, main_width, main_height);
@@ -353,6 +383,11 @@
       gl.useProgram(time_domain_program);
       setFramebuffer(time_domain_fbo, main_width, 1);
       gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+    //setFramebuffer(long_time_domain_fbo, main_width, 1, main_width * drawLongTimePart);
+    //gl.drawArrays(gl.TRIANGLES, 0, 6);
+    //drawLongTimePart += 1;
+    //drawLongTimePart %= longTimeMultiple;
     }
 
     function animate() {
@@ -364,9 +399,15 @@
       gl.useProgram(time_domain_display_program);
       gl.drawArrays(gl.TRIANGLES, 0, 6);
 
-      setFramebuffer(null, 100, main_height + 100, main_width, 0);
+      analyserNode.getByteFrequencyData(fftArray);
+      gl.activeTexture(gl.TEXTURE8);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.ALPHA, analyserNode.frequencyBinCount, 1, 0, gl.ALPHA, gl.UNSIGNED_BYTE, fftArray);
+
+      setFramebuffer(null, 50, main_height + 100, main_width, 0);
       gl.useProgram(freq_domain_display_program);
+      //gl.uniform1f(gl.getUniformLocation(freq_domain_display_program, "blue_freq"), imageFrequencies[0]);
       gl.drawArrays(gl.TRIANGLES, 0, 6);
+
 
       requestAnimationFrame(animate);
     }
@@ -386,6 +427,10 @@
       var millis = now.getTime();
 
       var beats = Math.floor(millis / 1000.0 / 60 * bpm);
+
+    //imageFrequencies[0] += 1.0;
+    //setTimeout(changeNotes, javascriptTimeout * 20);
+    //return;
 
       for(var i = 0; i < patterns.length; i++) {
         var pattern = patterns[i];
@@ -430,9 +475,27 @@
       return texture;
     }
 
-    function makeTimeDomainTexture() {
+    function makeFftTexture() {
       var texture = gl.createTexture();
-      gl.activeTexture(gl.TEXTURE7);
+      gl.activeTexture(gl.TEXTURE8);
+      gl.bindTexture(gl.TEXTURE_2D, texture);
+
+      // Set up texture so we can render any size image and so we are
+      // working with pixels.
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, fftSize/2, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+
+      return texture;
+    }
+
+
+    function makeTimeDomainTexture(gltexture, width) {
+      var texture = gl.createTexture();
+      gl.activeTexture(gltexture);
       gl.bindTexture(gl.TEXTURE_2D, texture);
 
       // Set up texture so we can render any size image and so we are
@@ -444,7 +507,7 @@
 
       gl.getExtension('OES_texture_float');
       //gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, main_width, main_height, 0, gl.RGBA32F, gl.FLOAT, null);
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, main_width, 1, 0, gl.RGBA, gl.FLOAT, null);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, 1, 0, gl.RGBA, gl.FLOAT, null);
 
       return texture;
     }
@@ -526,6 +589,9 @@
     uniform float image_bands;
     uniform float image_freqs[5];
     uniform float images_offsets[5];
+
+    uniform float bpm;
+
     const float pi = acos(-1.0);
     const float tau = pi * 2.0;
 
@@ -624,7 +690,7 @@
       float green_channel = rgb2grey(sample.rgb);
       green = (0.5 * (1.0 - sample.a) + green_channel * sample.a);
 
-      vec4 blueSample = texture2D(image6, position * vec2(1,1.0 + sin(seconds) * 0.5) + vec2(0,0) );
+      vec4 blueSample = texture2D(image6, position * vec2(1,-1.0 + sin(seconds / 60.0 * bpm * pi) * 1.5) + vec2(0,1) );
       blue = blueSample.a * rgb2grey(blueSample.rgb) + (0.5 * (1.0 - blueSample.a));
       //blue = (blue + blueSample.b) / 2.0;
 
@@ -704,29 +770,11 @@
     uniform sampler2D image;
 
     void main() {
-      float acc = 0.0;
-      vec4 sample;
       float color = 0.0;
+      vec4 sample;
 
-      float freq = position.y * 1024.0;
-      float phase = position.x;
-
-      float all = 0.0;
-      for(int i = 0; i < 1024; i++) {
-        sample = texture2D(image, vec2(float(i) / 1024.0, 0));
-        all = all + sample.r;
-      }
-      float avg = all / 1024.0;
-
-      for(int i = 0; i < 1024; i++) {
-        if(i < int(freq * floor(1024.0 / freq))) {
-          float pos = mod((float(i) + phase) * freq, 1024.0);
-          sample = texture2D(image, vec2(pos / 1024.0, 0));
-          acc += sample.r - avg;
-        }
-      }
-
-      color = acc;
+      sample = texture2D(image, vec2(position.y / 2.0, 1));
+      color = sample.a * 2.0;
 
       gl_FragColor.rgba = vec4(color, 0.0, 0.0, 1.0);
     }
@@ -768,7 +816,7 @@
   <body>
     <body onload="start()" >
       <div id="container">
-        <canvas id="glcanvas" width="1124" height="612"></canvas>
+        <canvas id="glcanvas" width="1224" height="612"></canvas>
       </div>
     </body>
   </body>
