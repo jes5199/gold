@@ -1,0 +1,838 @@
+<html>
+  <head>
+    <script>
+    function midi2freq(note) {
+      return Math.pow(2,(note - 69) / 12) * 440.0;
+    }
+
+    var period = 1024 / 44100; // seconds
+    var resonance = 44100 / 1024; // hz
+
+    var main_width = 1024;
+    var main_height = 512;
+
+    var fftSize = 2 ** 12;
+
+    var e1 = 41.20;
+    var f1 = 43.65;
+    var freq = resonance;
+    var base = freq * 5.0;
+    //var base = 260.74;
+    console.log(base);
+    //base = 29.97;
+    var ntv = [0, base, base * 9/8, base * 81/64, base * 4/3, base * 3/2, base * 27/16, base * 243/128, base * 2]
+
+    var string_count = 4;
+    var image_count = 3;
+
+    var patterns = [
+      [ntv[5], ntv[2], ntv[5], ntv[0], ntv[5], ntv[2], ntv[1], ntv[0],
+       ntv[5], ntv[2], ntv[5], ntv[2], ntv[5], ntv[2], ntv[1], ntv[0]],
+      [ntv[3], ntv[1], ntv[5]],
+      [ntv[5], ntv[2], ntv[5], ntv[0], ntv[5], ntv[2], ntv[1], ntv[0],
+       ntv[5], ntv[2], ntv[5], ntv[2], ntv[5], ntv[2], ntv[1], ntv[0]],
+      [ntv[3], ntv[1], ntv[5], ntv[4], ntv[0]],
+    //[ntv[1], ntv[5], ntv[5]],
+    //[ntv[1], ntv[2], ntv[3], ntv[4], ntv[5], ntv[6], ntv[7], ntv[8]],
+    //[ntv[3], ntv[1], ntv[5]],
+    //[ntv[4], ntv[5]],
+    //[ntv[7], ntv[6], ntv[5], ntv[1]],
+    //[ntv[1], ntv[4], ntv[2], ntv[5], ntv[8]],
+    ];
+    var samplePatterns = [
+      [ntv[0], ntv[5], ntv[2], ntv[5], ntv[0], ntv[5],
+       ntv[2], ntv[1], ntv[0], ntv[5], ntv[2], ntv[5], ntv[2], ntv[5],
+       ntv[2], ntv[1], ntv[0], ntv[0], ntv[0]],
+      [ntv[0], ntv[5], ntv[2], ntv[5], ntv[0], ntv[5],
+       ntv[2], ntv[1], ntv[0], ntv[5], ntv[2], ntv[5], ntv[2], ntv[5],
+       ntv[2], ntv[1], ntv[0]],
+      [ntv[5], ntv[2], ntv[5], ntv[1], ntv[0],
+       ntv[2], ntv[1], ntv[0], ntv[5], ntv[0], ntv[0], ntv[2], ntv[5],
+       ntv[2], ntv[1], ntv[0], ntv[1]],
+    //[ntv[1], ntv[2], ntv[3], ntv[4], ntv[5], ntv[6], ntv[7], ntv[8]],
+    //[ntv[8], ntv[8], ntv[6], ntv[6], ntv[0], ntv[0], ntv[0], ntv[0]],
+    //[ntv[8], ntv[8], ntv[8], ntv[8], ntv[0], ntv[0], ntv[0], ntv[0]],
+    //[ntv[1], ntv[2], ntv[3], ntv[4], ntv[5], ntv[6], ntv[7], ntv[8]],
+    //[ntv[1], ntv[2], ntv[3], ntv[4], ntv[5], ntv[6], ntv[7], ntv[8]],
+    //[ntv[1], ntv[2], ntv[3], ntv[4], ntv[5], ntv[6], ntv[7], ntv[8]],
+    //[ntv[1], ntv[2], ntv[3], ntv[4], ntv[5], ntv[6], ntv[7], ntv[8]],
+    //[ntv[1], ntv[3], ntv[5]],
+    //[ntv[4], ntv[5]],
+    //[ntv[7], ntv[6], ntv[5], ntv[1]],
+    //[ntv[1], ntv[4], ntv[2], ntv[5], ntv[8]],
+    //[ntv[7], ntv[6], ntv[5], ntv[1]],
+    ];
+
+    var bpm = 80;
+
+    var pixels;
+    var pitches = [0., 0., 0., 0.0, 0, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0, 0,
+                   0, 0, 0, 0, 0, 0, 0, 0];
+
+    var imageFrequencies = [
+      ntv[0],
+      ntv[0],
+      ntv[0],
+      ntv[0],
+      ntv[0],
+    ];
+
+    var images = [new Image(), new Image(), new Image(), new Image(), new Image(), new Image(1024, 512)];
+      //images[0].src = "images/AKWF_cello_0001.wav.png";
+      //images[2].src = "images/lion.webp";
+      //images[2].src = "squarewave.png";
+      //images[3].src = "AKWF_piano_0001.8.png";
+      //images[0].src = "images/AKWF_hvoice_0008.wav.blob.png"
+      //images[0].src = "images/lion.webp";
+      images[1].src = "images/AKWF_hvoice_0008.wav.blob.png"
+      images[2].src = "images/AKWF_hvoice_0008.wav.blob.png"
+      images[3].src = "images/AKWF_hvoice_0008.wav.blob.png"
+      images[4].src = "images/AKWF_hvoice_0008.wav.blob.png"
+      //images[5].src = "images/lion.webp";
+      images[0].src = "images/AKWF_hvoice_0008.wav.blob.png"
+      images[0].src = "images/irisgurgle.blob.png";
+      images[1].src = "images/irisgurgle.blob.png";
+      images[2].src = "images/irisgurgle.blob.png";
+      images[3].src = "images/irisgurgle.blob.png";
+      images[4].src = "images/irisgurgle.blob.png";
+      //images[5].src = "images/irisgurgle.blob.png";
+      images[0].src = "images/jesse-eee.png";
+      images[1].src = "images/jesse-aaa.png";
+      //images[2].src = "images/jesse-eee.png";
+      images[3].src = "images/jesse-eee.png";
+      images[4].src = "images/jesse-eee.png";
+      //images[5].src = "images/jesse-eee.png";
+      //images[5].src = "images/lion.webp";
+      //images[5].src = "images/AKWF_vgame_0070.wav.blob.png";
+
+    var pitchesOffsets = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+    var imagesOffsets = [0,0,0,0,0];
+
+    var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    var scriptNode = audioCtx.createScriptProcessor(1024, 0, 1);
+    var canvas;
+    var gl;
+    var ctx;
+
+    var main_texture;
+    var time_domain_texture;
+    var long_time_domain_texture;
+    var longTimeMultiple = 2;
+
+    var main_fbo;
+    var time_domain_fbo;
+    var long_time_domain_fbo;
+
+    var main_program;
+    var display_program;
+    var time_domain_program;
+    var time_domain_display_program;
+    var freq_domain_display_program;
+
+    console.log( audioCtx.sampleRate );
+
+    var glTextures = [];
+
+    var analyserNode;
+    var fftArray;
+
+    var automataWorker;
+    var automataImageData;
+
+    var javascriptTimeout = 20; //ms
+
+    //var playbackTimeStart = -1;
+
+    var frameCount = 9999;
+
+    scriptNode.onaudioprocess = function (event) {
+      var length = event.outputBuffer.length;
+      var channelData = event.outputBuffer.getChannelData(0);
+
+      //if(playbackTimeStart < 0){ playbackTimeStart = event.playbackTime};
+      //var seconds = event.playbackTime - playbackTimeStart;
+
+      var sampleCount = (frameCount * 1024);
+      var seconds = frameCount * (1024 / 44100);
+
+      //console.log(frameCount + " " + seconds);
+      setUniforms(seconds, frameCount);
+      drawMain();
+
+      setFramebuffer(time_domain_fbo, main_width, 1);
+      var height = 1;
+      var width = main_width;
+      if(!pixels) {
+        pixels = new Float32Array(width * height * 4);
+      }
+
+      gl.readPixels(0, 0, width, height, gl.RGBA, gl.FLOAT, pixels);
+
+      //console.log(pixels);
+      for(n = 0; n < length; n+=1) {
+        channelData[n] = pixels[n * 4];
+      }
+
+      frameCount += 1;
+      frameCount %= 11025; // lcm(1024, 44100) / 1024
+    }
+
+    function compile_vertex_shader(id) {
+      var vertex_shader = gl.createShader(gl.VERTEX_SHADER);
+      gl.shaderSource(vertex_shader, document.getElementById(id).text);
+      gl.compileShader(vertex_shader);
+
+      var success = gl.getShaderParameter(vertex_shader, gl.COMPILE_STATUS);
+      if (!success) {
+        console.log(gl.getShaderInfoLog(vertex_shader));
+      }
+      return vertex_shader;
+    }
+
+    function compile_fragment_shader(id){
+      var fragment_shader = gl.createShader(gl.FRAGMENT_SHADER);
+      gl.shaderSource(fragment_shader, document.getElementById(id).text);
+      gl.compileShader(fragment_shader);
+
+      var success = gl.getShaderParameter(fragment_shader, gl.COMPILE_STATUS);
+      if (!success) {
+        console.log(gl.getShaderInfoLog(fragment_shader));
+      }
+      return fragment_shader;
+    }
+
+    function build_program(vertex_shader, fragment_shader) {
+      var program = gl.createProgram();
+      gl.attachShader(program, vertex_shader);
+      gl.attachShader(program, fragment_shader);
+      gl.linkProgram(program);
+      var success = gl.getProgramParameter(program, gl.LINK_STATUS);
+      if (!success) {
+        console.log(gl.getProgramInfoLog(program));
+      }
+      return program;
+    }
+
+    function assign_positions(program, attribute, positions) {
+      var positionAttributeLocation = gl.getAttribLocation(program, attribute);
+      var positionBuffer = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
+      gl.enableVertexAttribArray(positionAttributeLocation);
+      gl.vertexAttribPointer(
+              positionAttributeLocation, 2, gl.FLOAT, false, 0, 0)
+    }
+
+    function setup_images() {
+      for(var i = 0; i < images.length; i++){
+        if(! images[i].src) {
+          images[i].src = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+          images[i].onload = updateTextures;
+        }
+      }
+    }
+
+    function start() {
+      canvas = document.getElementById("glcanvas");
+      gl = canvas.getContext("webgl") || canvas.getContext("webgl");
+
+      var positions = [
+        0, 0,
+        1, 1,
+        0, 1,
+        0, 0,
+        1, 1,
+        1, 0,
+      ];
+
+      setup_images();
+
+      var vertex_shader = compile_vertex_shader("vertex-shader");
+      var main_fragment_shader = compile_fragment_shader("main-fragment-shader");
+      main_program = build_program(vertex_shader, main_fragment_shader);
+
+      assign_positions(main_program, "a_position", positions);
+
+      setUniforms();
+      changeNotes();
+      makeTextures();
+
+      main_texture = makeMainTexture();
+
+      main_fbo = gl.createFramebuffer();
+      gl.bindFramebuffer(gl.FRAMEBUFFER, main_fbo);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, main_texture, 0);
+
+      setFramebuffer(main_fbo, main_width, main_height);
+      //console.log(gl.checkFramebufferStatus(gl.FRAMEBUFFER));
+
+      gl.clearColor(0, 0, 0, 0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+
+      var display_fragment_shader = compile_fragment_shader("display-fragment-shader");
+      display_program = build_program(vertex_shader, display_fragment_shader);
+      assign_positions(display_program, "a_position", positions);
+      gl.useProgram(display_program);
+      var imageLocation = gl.getUniformLocation(display_program, "image");
+      gl.uniform1i(imageLocation, 6);
+
+      time_domain_texture = makeTimeDomainTexture(gl.TEXTURE7, main_width);
+      time_domain_fbo = gl.createFramebuffer();
+      gl.bindFramebuffer(gl.FRAMEBUFFER, time_domain_fbo);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, time_domain_texture, 0);
+
+    //long_time_domain_texture = makeTimeDomainTexture(gl.TEXTURE8, main_width * longTimeMultiple);
+    //long_time_domain_fbo = gl.createFramebuffer();
+    //gl.bindFramebuffer(gl.FRAMEBUFFER, long_time_domain_fbo);
+    //gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, long_time_domain_texture, 0);
+
+      var time_domain_fragment_shader = compile_fragment_shader("time-domain-fragment-shader");
+      time_domain_program = build_program(vertex_shader, time_domain_fragment_shader);
+      assign_positions(time_domain_program, "a_position", positions);
+      gl.useProgram(time_domain_program);
+      imageLocation = gl.getUniformLocation(time_domain_program, "image");
+      gl.uniform1i(imageLocation, 6);
+      gl.uniform1i(gl.getUniformLocation(time_domain_program, "height"), main_height);
+
+      fft_texture = makeFftTexture();
+
+      var time_domain_display_fragment_shader = compile_fragment_shader("time-domain-display-fragment-shader");
+      time_domain_display_program = build_program(vertex_shader, time_domain_display_fragment_shader);
+      assign_positions(time_domain_display_program, "a_position", positions);
+      gl.useProgram(time_domain_display_program);
+      imageLocation = gl.getUniformLocation(time_domain_display_program, "image");
+      gl.uniform1i(imageLocation, 7);
+
+      var freq_domain_display_fragment_shader = compile_fragment_shader("freq-domain-display-fragment-shader");
+      freq_domain_display_program = build_program(vertex_shader, freq_domain_display_fragment_shader);
+      assign_positions(freq_domain_display_program, "a_position", positions);
+      gl.useProgram(freq_domain_display_program);
+      imageLocation = gl.getUniformLocation(freq_domain_display_program, "image");
+      gl.uniform1i(imageLocation, 8);
+
+      setupAudio();
+      animate();
+    }
+
+    function setupAudio() {
+      var gainNode = audioCtx.createGain();
+      gainNode.gain.value = 1.0;
+
+      var filterNode = audioCtx.createBiquadFilter();
+      filterNode.type = "lowpass";
+      filterNode.frequency.value = 2500;
+      filterNode.Q.value = 1.01;
+
+      analyserNode = audioCtx.createAnalyser();
+      analyserNode.fftSize = fftSize;
+      fftArray = new Uint8Array(analyserNode.frequencyBinCount);
+
+      scriptNode.connect(filterNode);
+      filterNode.connect(gainNode);
+      //scriptNode.connect(gainNode);
+      gainNode.connect(analyserNode);
+      analyserNode.connect(audioCtx.destination);
+    }
+
+    function setupWorker(){
+      // currently busted
+
+      var blob = new Blob([
+          document.querySelector('#automataWorker').textContent
+      ], { type: "text/javascript" })
+      automataWorker = new Worker(window.URL.createObjectURL(blob));
+      automataWorker.onmessage = receiveAutomata;
+
+      automataTick();
+    }
+
+    function setUniforms(seconds = 0, frameCount = 0) {
+      gl.useProgram(main_program);
+
+      gl.uniform1fv(gl.getUniformLocation(main_program, "pitches"), pitches);
+      gl.uniform1i(gl.getUniformLocation(main_program, "pitch_count"), 32);
+      gl.uniform2f(gl.getUniformLocation(main_program, "u_resolution"), main_width, main_height);
+
+      gl.uniform1f(gl.getUniformLocation(main_program, "sample_rate"), audioCtx.sampleRate);
+
+      gl.uniform1f(gl.getUniformLocation(main_program, "offset_seconds"), seconds);
+      gl.uniform1i(gl.getUniformLocation(main_program, "frame_count"), frameCount);
+
+      gl.uniform1f(gl.getUniformLocation(main_program, "string_count"), string_count);
+      gl.uniform1f(gl.getUniformLocation(main_program, "image_bands"), image_count);
+
+      gl.uniform1f(gl.getUniformLocation(main_program, "bpm"), bpm);
+
+      gl.uniform1fv(gl.getUniformLocation(main_program, "image_freqs"), imageFrequencies);
+    }
+
+    function setFramebuffer(fbo, width, height, offset_x = 0, offset_y = 0) {
+      // make this the framebuffer we are rendering to.
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+
+      // Tell webgl the viewport setting needed for framebuffer.
+      gl.viewport(offset_x, offset_y, width, height);
+    }
+
+    var drawLongTimePart = 0;
+    function drawMain() {
+      gl.useProgram(main_program);
+      setFramebuffer(main_fbo, main_width, main_height);
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+      gl.useProgram(time_domain_program);
+      setFramebuffer(time_domain_fbo, main_width, 1);
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+    //setFramebuffer(long_time_domain_fbo, main_width, 1, main_width * drawLongTimePart);
+    //gl.drawArrays(gl.TRIANGLES, 0, 6);
+    //drawLongTimePart += 1;
+    //drawLongTimePart %= longTimeMultiple;
+    }
+
+    function animate() {
+      setFramebuffer(null, main_width, main_height, 0, 100);
+      gl.useProgram(display_program);
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+      setFramebuffer(null, main_width, 100, 0, 0);
+      gl.useProgram(time_domain_display_program);
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+      analyserNode.getByteFrequencyData(fftArray);
+      gl.activeTexture(gl.TEXTURE8);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.ALPHA, analyserNode.frequencyBinCount, 1, 0, gl.ALPHA, gl.UNSIGNED_BYTE, fftArray);
+
+      setFramebuffer(null, 50, main_height + 100, main_width, 0);
+      gl.useProgram(freq_domain_display_program);
+      //gl.uniform1f(gl.getUniformLocation(freq_domain_display_program, "blue_freq"), imageFrequencies[0]);
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+
+      requestAnimationFrame(animate);
+    }
+
+    function automataTick() {
+      automataWorker.postMessage([]);
+    }
+
+    function receiveAutomata(e) {
+      automataImageData = e.data;
+      images[5] = automataImageData;
+      setTimeout(automataTick, 100);
+    }
+
+    var startMillis;
+    function changeNotes() {
+      var now = new Date();
+      if(! startMillis) {
+        startMillis = now.getTime();
+      }
+      var millis = now.getTime() - startMillis;
+
+      var beats = Math.floor(millis / 1000.0 / 60 * bpm);
+
+    //imageFrequencies[0] += 1.0;
+    //setTimeout(changeNotes, javascriptTimeout * 20);
+    //return;
+
+      for(var i = 0; i < patterns.length; i++) {
+        var pattern = patterns[i];
+        if(pattern.length > 0) {
+          var pitch = pattern[beats % pattern.length];
+          if(pitches[i] != pitch) {
+            pitches[i] = pitch;
+            //pitchesOffsets[i] = 0;
+          }
+        }
+      }
+
+      for(var i = 0; i < samplePatterns.length; i++) {
+        var pattern = samplePatterns[i];
+        if(pattern.length > 0) {
+          var pitch = pattern[beats % pattern.length];
+          if(imageFrequencies[i] != pitch) {
+            imageFrequencies[i] = pitch;
+            //imagesOffsets[i] = 0;
+          }
+        }
+      }
+
+      //pitches.sort(function(a,b){return a-b}).reverse();
+      setTimeout(changeNotes, javascriptTimeout);
+    }
+
+    function makeMainTexture() {
+      var texture = gl.createTexture();
+      gl.activeTexture(gl.TEXTURE6);
+      gl.bindTexture(gl.TEXTURE_2D, texture);
+
+      // Set up texture so we can render any size image and so we are
+      // working with pixels.
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, main_width, main_height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+
+      return texture;
+    }
+
+    function makeFftTexture() {
+      var texture = gl.createTexture();
+      gl.activeTexture(gl.TEXTURE8);
+      gl.bindTexture(gl.TEXTURE_2D, texture);
+
+      // Set up texture so we can render any size image and so we are
+      // working with pixels.
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, fftSize/2, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+
+      return texture;
+    }
+
+
+    function makeTimeDomainTexture(gltexture, width) {
+      var texture = gl.createTexture();
+      gl.activeTexture(gltexture);
+      gl.bindTexture(gl.TEXTURE_2D, texture);
+
+      // Set up texture so we can render any size image and so we are
+      // working with pixels.
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+
+      gl.getExtension('OES_texture_float');
+      //gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, main_width, main_height, 0, gl.RGBA32F, gl.FLOAT, null);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, 1, 0, gl.RGBA, gl.FLOAT, null);
+
+      return texture;
+    }
+
+    function makeTextures() {
+      glTextures = [gl.TEXTURE0, gl.TEXTURE1, gl.TEXTURE2, gl.TEXTURE3, gl.TEXTURE4, gl.TEXTURE5];
+      for(i = 0; i < images.length; i++) {
+        var texture = gl.createTexture();
+        gl.activeTexture(glTextures[i]);
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, images[i]);
+        var imageLocation = gl.getUniformLocation(main_program, "image" + (i+1));
+        gl.uniform1i(imageLocation, i);
+      }
+
+      updateTextures();
+      //setTimeout(updateTextures, javascriptTimeout);
+    }
+
+    function updateTextures() {
+      for(i = 0; i < images.length; i++) {
+        gl.activeTexture(glTextures[i]);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, images[i]);
+      }
+
+      //setTimeout(updateTextures, javascriptTimeout * 200);
+      setTimeout(updateRecursiveTexture, 1000);
+    }
+
+    function updateRecursiveTexture() {
+      setFramebuffer(main_fbo, main_width, main_height);
+      gl.activeTexture(glTextures[5]);
+      //gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
+      //gl.copyTexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 0, 0, main_width, main_height, 0);
+
+      setTimeout(updateRecursiveTexture, 100);
+    }
+
+    </script>
+    <script id="vertex-shader" type="x-shader/x-vertex">
+      precision mediump float;
+      attribute vec4 a_position;
+      attribute vec2 a_texCoord;
+      uniform vec2 u_resolution;
+
+      varying vec2 position;
+      varying vec2 coords;
+
+      void main() {
+        position = vec2(a_position[0], a_position[1]);
+        coords = position * u_resolution;
+        gl_Position = 2.0 * a_position - 1.0;
+      }
+    </script>
+    <script id="main-fragment-shader" type="x-shader/x-fragment">
+    precision highp float;
+
+    varying vec2 position;
+    varying vec2 coords;
+
+    uniform float sample_rate;
+    uniform int offset_seconds_int;
+    uniform float offset_seconds;
+    uniform int frame_count;
+    uniform float pitches[32];
+    uniform int pitch_count;
+    uniform float string_count;
+    uniform sampler2D image1;
+    uniform sampler2D image2;
+    uniform sampler2D image3;
+    uniform sampler2D image4;
+    uniform sampler2D image5;
+
+    uniform sampler2D image6;
+
+    uniform float image_bands;
+    uniform float image_freqs[5];
+
+    uniform float bpm;
+
+    const float pi = acos(-1.0);
+    const float tau = pi * 2.0;
+
+    float norm(float s) {
+      return s / 2.0 + 0.5;
+    }
+
+    float denorm(float s) {
+      return (s - 0.5) * 2.0;
+    }
+
+    vec2 complex_square( vec2 v ) {
+      return vec2(
+          v.x * v.x - v.y * v.y,
+          v.x * v.y * 2.0
+          );
+    }
+
+    vec3 rgb2hsv(vec3 c) {
+	vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
+	vec4 p = mix(vec4(c.bg, K.wz), vec4(c.gb, K.xy), step(c.b, c.g));
+	vec4 q = mix(vec4(p.xyw, c.r), vec4(c.r, p.yzx), step(p.x, c.r));
+
+	float d = q.x - min(q.w, q.y);
+	float e = 1.0e-10;
+	return vec3(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x);
+    }
+
+    vec3 hsv2rgb(vec3 c) {
+	vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+	vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+	return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+    }
+
+    float rgb2grey(vec3 c) {
+	return (c.r + c.g + c.b) / 3.0;
+    }
+
+    void main() {
+      float extra_offset = coords.x / sample_rate;
+      float seconds = offset_seconds + offset_seconds + extra_offset;
+      float red = 0.0;
+      float green = 0.0;
+      float blue = 0.0;
+
+      int shades = 1;//54;
+
+      float degrader = 0.0;
+
+      for(int i = 0; i < 32; i++){
+        float pitch_part = mod(position.y * string_count, float(pitch_count));
+        if( pitch_part - float(i) >= 0.0 && pitch_part - float(i) < 1.0 ) {
+          float vertical_part = pitch_part - float(i);
+          float my_offset = offset_seconds + extra_offset;
+          //float my_offset = offset_seconds + offset_seconds + extra_offset;
+          //red = norm(sin((float(frame_count) + pow(2.0, degrader)) * tau * pitches[i] * 44100.0 / 1024.0));
+          //my_offset = (float(frame_count) * 1024.0 + coords.x) / 44100.0;
+            //my_offset * tau * pitches[i]
+          float my_sample_count = float(frame_count) * 1024.0 + coords.x;
+          red = norm(sin(
+            (mod(my_sample_count / 44100.0, 1.0/pitches[i])) * pitches[i] * 2.0 * pi
+          ));
+          float red_shade = red * float(shades);
+          float major_shade = floor(red_shade + 0.5);
+          float shade_error = major_shade - red_shade;
+          red = major_shade / float(shades);
+          if(shade_error > 0.0 && vertical_part < shade_error) {
+            red -= (1.0 / float(shades)) * sign(shade_error);
+          } else if (shade_error < 0.0 && 1.0-vertical_part < -shade_error) {
+            red -= (1.0 / float(shades)) * sign(shade_error);
+          }
+        }
+      }
+
+      float image_band_num = floor(position.y * image_bands);
+      float image_vertical_offset = (image_band_num / image_bands);
+      float image_y = 1.0 - (position.y - image_vertical_offset) * image_bands;
+
+      float image_frequency = 43.06640625 * 4.0;
+      float image_x;
+
+      for(int i = 0; i < 5; i++) {
+        if(int(image_band_num) == i) {
+          image_frequency = image_freqs[i];
+          float my_offset = offset_seconds + extra_offset;
+          image_x = mod(my_offset * image_freqs[i], 1.0);
+        }
+      }
+
+      vec2 sample_position = vec2(image_x, image_y);
+      vec4 sample;
+      if(image_band_num == 0.0) {
+        sample = texture2D(image1, sample_position);
+      } else if(image_band_num == 1.0) {
+        sample = texture2D(image2, sample_position);
+      } else if(image_band_num == 2.0) {
+        sample = texture2D(image3, sample_position);
+      } else if(image_band_num == 3.0) {
+        sample = texture2D(image4, sample_position);
+      } else {
+        sample = texture2D(image5, sample_position);
+      }
+
+      float green_channel = rgb2grey(sample.rgb);
+      green = (0.5 * (1.0 - sample.a) + green_channel * sample.a);
+
+      vec4 blueSample = texture2D(image6, (position * vec2(1,-1.0) + vec2(0,1)));
+      blue = blueSample.a * rgb2grey(blueSample.rgb) + (0.5 * (1.0 - blueSample.a));
+      //blue = (blue + blueSample.b) / 2.0;
+
+      //vec2 c = vec2( 0.36 + 0.05 * cos(seconds * 120.0 / 60.0 * tau), 0.1);
+      float white = sqrt(red * green);
+
+      gl_FragColor.rgba = vec4(red, green, white, 1.0);
+      //gl_FragColor.rgba = vec4(green, green, green, 1.0);
+
+      //gl_FragColor.rgba = vec4(red, green, white, 1.0);
+    }
+    </script>
+    <script id="display-fragment-shader" type="x-shader/x-fragment">
+    precision highp float;
+
+    varying vec2 position;
+
+    uniform sampler2D image;
+    void main() {
+      gl_FragColor.rgba = texture2D(image, position);
+    }
+    </script>
+    <script id="time-domain-fragment-shader" type="x-shader/x-fragment">
+    precision highp float;
+
+    varying vec2 position;
+
+    uniform sampler2D image;
+    uniform int height;
+
+    void main() {
+      int acc = 0;
+      vec4 sample;
+
+      for(int i = 0; i < 1024; i++) {
+        if(i < height) {
+          sample = texture2D(image, vec2(position.x, float(i) / float(height)));
+          acc = acc + int(sample.r * 255.0) + int(sample.g * 255.0) + int(sample.b * 255.0);
+        }
+      }
+      float red = float(acc) / (float(height) * 255.0 * 3.0 / 2.0) - 1.0;
+      gl_FragColor.rgba = vec4(red, height, red, red);
+    }
+    </script>
+    <script id="time-domain-display-fragment-shader" type="x-shader/x-fragment">
+    precision highp float;
+
+    varying vec2 position;
+
+    uniform sampler2D image;
+
+    void main() {
+      int acc = 0;
+      vec4 sample;
+      float color = 0.0;
+
+      sample = texture2D(image, vec2(position.x, 1));
+      float y = (2.0 * position.y) - 1.0;
+
+      if(y > sample.r) {
+        if( sample.r < 0.0 && y < 0.0){
+          color = 1.0;
+        }
+      } else {
+        if( sample.r > 0.0 && y > 0.0){ 
+          color = 1.0;
+        }
+      }
+
+      gl_FragColor.rgba = vec4(0.0, color, 0.0, 1.0);
+    }
+    </script>
+    <script id="freq-domain-display-fragment-shader" type="x-shader/x-fragment">
+    precision highp float;
+
+    varying vec2 position;
+
+    uniform sampler2D image;
+
+    void main() {
+      float color = 0.0;
+      vec4 sample;
+
+      sample = texture2D(image, vec2(position.y / 2.0, 1));
+      color = sample.a * 2.0;
+
+      gl_FragColor.rgba = vec4(color, 0.0, 0.0, 1.0);
+    }
+    </script>
+    <script id="automataWorker" type="javascript/worker">
+      self.onmessage = function(e) {
+        var imageData, w, h;
+        [imageData, w, h] = e.message;
+        if(! imageData){
+          imageData = new ImageData(w, h);
+        }
+        runAutomata(imageData, w, h);
+      };
+
+      function runAutomata(imageData, w, h) {
+        return 1;
+        return imageData;
+      }
+    </script>
+
+    <style>
+      #container {
+        width: 1024px;
+        height: 512px;
+        position:absolute;
+        margin: auto;
+        top: 0; bottom: 0; left: 0; right: 0;
+      }
+      canvas {
+        border: 0px solid red;
+      }
+      body {
+        background: #808080;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <body onload="start()" >
+      <div id="container">
+        <canvas id="glcanvas" width="1224" height="612"></canvas>
+      </div>
+    </body>
+  </body>
+</html>
