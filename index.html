@@ -680,9 +680,6 @@
             //my_offset * tau * pitches[i]
           float my_sample_count = float(frame_count) * 1024.0 + coords.x;
           red = norm(sin(
-            (mod(my_sample_count / 44100.0, 1.0/pitches[i])) * pitches[i] * 2.0 * pi
-          ));
-          red = norm(sin(
             my_sample_count / 44100.0 * pitches[i] * 2.0 * pi
           ));
           float red_shade = red * float(shades);
