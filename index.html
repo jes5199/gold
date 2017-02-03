@@ -21,7 +21,7 @@
     var e1 = 41.20;
     var f1 = 43.65;
     var freq = resonance;
-    var base = freq * 4.0;
+    var base = freq * 5.0;
     //base = 220;
     //var base = 260.74 / 2;
     console.log(base);
@@ -40,38 +40,50 @@
     console.log(ntv);
 
     var string_count = 4;
-    var image_count = 3;
+    var image_count = 5;
 
     var patterns = [
+      [ntv[8], ntv[7], ntv[6]],
+      [ntv[1], ntv[3], ntv[1]],
+      [ntv[5], ntv[4], ntv[1], ntv[5]],
+      [ntv[1]],
    // [ntv[3], ntv[4], ntv[5], ntv[6], ntv[7], ntv[8]],
    // [ntv[1], ntv[2], ntv[3], ntv[4], ntv[5], ntv[6], ntv[7], ntv[8]],
    // [ntv[1], ntv[2], ntv[3], ntv[4], ntv[5], ntv[6], ntv[7], ntv[8]],
    // [ntv[1], ntv[2], ntv[3], ntv[4], ntv[5], ntv[6], ntv[7], ntv[8]],
    // [ntv[1], ntv[2], ntv[3], ntv[4], ntv[5], ntv[6], ntv[7], ntv[8]],
    // [ntv[1], ntv[2], ntv[3], ntv[4], ntv[5], ntv[6], ntv[7], ntv[8]],
-      [ntv[5], ntv[2], ntv[5], ntv[0], ntv[5], ntv[2], ntv[1], ntv[0],
-       ntv[5], ntv[2], ntv[5], ntv[2], ntv[5], ntv[2], ntv[1], ntv[0]],
-      [ntv[3], ntv[1], ntv[5]],
-      [ntv[5], ntv[2], ntv[5], ntv[0], ntv[5], ntv[2], ntv[1], ntv[0],
-       ntv[5], ntv[2], ntv[5], ntv[2], ntv[5], ntv[2], ntv[1], ntv[0]],
-      [ntv[3], ntv[1], ntv[5], ntv[4], ntv[0]],
-      [ntv[1], ntv[5], ntv[5]],
+  //  [ntv[5], ntv[2], ntv[5], ntv[0], ntv[5], ntv[2], ntv[1], ntv[0],
+  //   ntv[5], ntv[2], ntv[5], ntv[2], ntv[5], ntv[2], ntv[1], ntv[0]],
+  //  [ntv[3], ntv[1], ntv[5]],
+  //  [ntv[5], ntv[2], ntv[5], ntv[0], ntv[5], ntv[2], ntv[1], ntv[0],
+  //   ntv[5], ntv[2], ntv[5], ntv[2], ntv[5], ntv[2], ntv[1], ntv[0]],
+  //  [ntv[3], ntv[1], ntv[5], ntv[4], ntv[0]],
+  //  [ntv[1], ntv[5], ntv[5]],
     //[ntv[3], ntv[1], ntv[5]],
     //[ntv[4], ntv[5]],
     //[ntv[7], ntv[6], ntv[5], ntv[1]],
     //[ntv[1], ntv[4], ntv[2], ntv[5], ntv[8]],
     ];
     var samplePatterns = [
+      [ntv[1], 0, 0, 0, 0, ntv[1]],
+      [0, ntv[1], 0, 0, 0, ntv[1]],
+      [0, 0, ntv[1], 0, 0, ntv[1]],
+      [0, 0, 0, ntv[1], 0, ntv[1]],
+      [0, 0, 0, 0, ntv[1], ntv[1]],
+    //[ntv[1], ntv[1], ntv[4], ntv[8], 0,0,0,0, 0,0,0,0],
+    //[0,0,0,0, ntv[1], ntv[1], ntv[4], ntv[8], 0,0,0,0],
+    //[0,0,0,0, 0,0,0,0, ntv[1], ntv[1], ntv[4], ntv[8]],
    // [ntv[5]],
-      [ntv[0], ntv[5], ntv[2], ntv[5], ntv[0], ntv[5],
-       ntv[2], ntv[1], ntv[0], ntv[5], ntv[2], ntv[5], ntv[2], ntv[5],
-       ntv[2], ntv[1], ntv[0], ntv[0], ntv[0]],
-      [ntv[0], ntv[5], ntv[2], ntv[5], ntv[0], ntv[5],
-       ntv[2], ntv[1], ntv[0], ntv[5], ntv[2], ntv[5], ntv[2], ntv[5],
-       ntv[2], ntv[1], ntv[0]],
-      [ntv[5], ntv[2], ntv[5], ntv[1], ntv[0],
-       ntv[2], ntv[1], ntv[0], ntv[5], ntv[0], ntv[0], ntv[2], ntv[5],
-       ntv[2], ntv[1], ntv[0], ntv[1]],
+  //  [ntv[0], ntv[5], ntv[2], ntv[5], ntv[0], ntv[5],
+  //   ntv[2], ntv[1], ntv[0], ntv[5], ntv[2], ntv[5], ntv[2], ntv[5],
+  //   ntv[2], ntv[1], ntv[0], ntv[0], ntv[0]],
+  //  [ntv[0], ntv[5], ntv[2], ntv[5], ntv[0], ntv[5],
+  //   ntv[2], ntv[1], ntv[0], ntv[5], ntv[2], ntv[5], ntv[2], ntv[5],
+  //   ntv[2], ntv[1], ntv[0]],
+  //  [ntv[5], ntv[2], ntv[5], ntv[1], ntv[0],
+  //   ntv[2], ntv[1], ntv[0], ntv[5], ntv[0], ntv[0], ntv[2], ntv[5],
+  //   ntv[2], ntv[1], ntv[0], ntv[1]],
     //[ntv[1], ntv[2], ntv[3], ntv[4], ntv[5], ntv[6], ntv[7], ntv[8]],
     //[ntv[8], ntv[8], ntv[6], ntv[6], ntv[0], ntv[0], ntv[0], ntv[0]],
     //[ntv[8], ntv[8], ntv[8], ntv[8], ntv[0], ntv[0], ntv[0], ntv[0]],
@@ -126,10 +138,10 @@
       images[4].src = "images/irisgurgle.blob.png";
       //images[5].src = "images/irisgurgle.blob.png";
       images[0].src = "images/jesse-eee.png";
-      images[1].src = "images/jesse-aaa.png";
-      //images[2].src = "images/jesse-eee.png";
-      images[3].src = "images/jesse-eee.png";
-      images[4].src = "images/jesse-eee.png";
+      images[1].src = "images/jesse-eee2.png";
+      images[2].src = "images/jesse-aaa.png";
+      images[3].src = "images/jesse-ohh.png";
+      images[4].src = "images/irisgurgle.blob.png";
       //images[5].src = "images/jesse-eee.png";
       //images[5].src = "images/lion.webp";
       //images[5].src = "images/AKWF_vgame_0070.wav.blob.png";
