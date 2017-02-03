@@ -151,6 +151,9 @@
 
     var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     var scriptNode = audioCtx.createScriptProcessor(1024, 0, 1);
+
+    var midi;
+
     var canvas;
     var gl;
     var ctx;
@@ -276,6 +279,13 @@
     }
 
     function start() {
+      setupGL();
+      setupAudio();
+      setupMIDI();
+      animate();
+    }
+
+    function setupGL() {
       canvas = document.getElementById("glcanvas");
       gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
 
@@ -324,11 +334,6 @@
       gl.bindFramebuffer(gl.FRAMEBUFFER, time_domain_fbo);
       gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, time_domain_texture, 0);
 
-    //long_time_domain_texture = makeTimeDomainTexture(gl.TEXTURE8, main_width * longTimeMultiple);
-    //long_time_domain_fbo = gl.createFramebuffer();
-    //gl.bindFramebuffer(gl.FRAMEBUFFER, long_time_domain_fbo);
-    //gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, long_time_domain_texture, 0);
-
       var time_domain_fragment_shader = compile_fragment_shader("time-domain-fragment-shader");
       time_domain_program = build_program(vertex_shader, time_domain_fragment_shader);
       assign_positions(time_domain_program, "a_position", positions);
@@ -352,9 +357,6 @@
       gl.useProgram(freq_domain_display_program);
       imageLocation = gl.getUniformLocation(freq_domain_display_program, "image");
       gl.uniform1i(imageLocation, 8);
-
-      setupAudio();
-      animate();
     }
 
     function setupAudio() {
@@ -381,6 +383,13 @@
       //scriptNode.connect(gainNode);
       gainNode.connect(analyserNode);
       analyserNode.connect(audioCtx.destination);
+    }
+
+    function setupMIDI() {
+      if(!("requestMIDIAccess" in navigator)) {
+        return;
+      }
+      navigator.requestMIDIAccess().then(function(midi_access){ midi = midi_access })
     }
 
     function setupWorker(){
@@ -690,20 +699,22 @@
         if( pitch_part - float(i) >= 0.0 && pitch_part - float(i) < 1.0 ) {
           float vertical_part = pitch_part - float(i);
           float intensity = 0.85;
+          float fshades = float(shades);
+          fshades = pow(2.0, floor(position.x * 4.0));
           sing = norm(sin(
             seconds * pitches[i] * 2.0 * pi
           ) * intensity ) * position.x;
           sing += norm(sin(
             seconds * past_pitches[i] * 2.0 * pi
           ) * intensity ) * (1.0 - position.x);
-          float red_shade = sing * float(shades);
+          float red_shade = sing * fshades;
           float major_shade = floor(red_shade + 0.5);
           float shade_error = major_shade - red_shade;
-          sing = major_shade / float(shades);
+          sing = major_shade / fshades;
           if(shade_error > 0.0 && vertical_part < shade_error) {
-            sing -= (1.0 / float(shades)) * sign(shade_error);
+            sing -= (1.0 / fshades) * sign(shade_error);
           } else if (shade_error < 0.0 && 1.0-vertical_part < -shade_error) {
-            sing -= (1.0 / float(shades)) * sign(shade_error);
+            sing -= (1.0 / fshades) * sign(shade_error);
           }
         }
       }
