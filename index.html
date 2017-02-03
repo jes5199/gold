@@ -21,14 +21,14 @@
     var e1 = 41.20;
     var f1 = 43.65;
     var freq = resonance;
-    var base = freq * 5.0;
+    var base = freq * 5.0 * 1.004;
     //base = 220;
     //var base = 260.74 / 2;
-    console.log(base);
+    console.log(base + " hz base tone");
     //base = 29.97;
     var ntv = [0, base, base * 9/8, base * 81/64, base * 4/3, base * 3/2, base * 27/16, base * 243/128, base * 2]
-    console.log(lockCycle);
-    console.log(ntv);
+    console.log(lockCycle + " seconds shared resonance");
+    //console.log(ntv);
 
     for(var x = 0; x < ntv.length; x++){
       var newval = Math.floor(ntv[x] / lockFreq) * lockFreq;
@@ -37,7 +37,7 @@
       console.log(cents);
       ntv[x] = newval;
     }
-    console.log(ntv);
+    //console.log(ntv);
 
     var string_count = 4;
     var image_count = 5;
@@ -66,8 +66,11 @@
     //[ntv[1], ntv[4], ntv[2], ntv[5], ntv[8]],
     ];
     var samplePatterns = [
-      [ntv[1], 0, 0, 0, 0, ntv[1]],
-      [0, ntv[1], 0, 0, 0, ntv[1]],
+      [ntv[1], ntv[7], ntv[6], ntv[2], ntv[3], ntv[1], ntv[1]],
+      [ntv[1], ntv[7], ntv[6], ntv[2], ntv[3], ntv[1], ntv[1], ntv[1], ntv[1]],
+      [ntv[1], ntv[7], ntv[6], ntv[2], ntv[3], ntv[1], ntv[1], ntv[1], ntv[1], ntv[1], ntv[1]],
+      [ntv[1], ntv[7], ntv[6], ntv[2], ntv[3], ntv[1], ntv[1], ntv[1], ntv[1], ntv[1], ntv[1], ntv[1], ntv[1]],
+      [ntv[1], ntv[7], ntv[6], ntv[2], ntv[3], ntv[1], ntv[1], ntv[1], ntv[1], ntv[1], ntv[1], ntv[1], ntv[1], ntv[1], ntv[1]],
       [0, 0, ntv[1], 0, 0, ntv[1]],
       [0, 0, 0, ntv[1], 0, ntv[1]],
       [0, 0, 0, 0, ntv[1], ntv[1]],
@@ -365,7 +368,7 @@
 
       var screechFilterNode = audioCtx.createBiquadFilter();
       screechFilterNode.type = "highshelf";
-      screechFilterNode.frequency.value = 3840;
+      screechFilterNode.frequency.value = 3540;
       screechFilterNode.gain.value = -36.000;
 
       analyserNode = audioCtx.createAnalyser();
@@ -678,7 +681,7 @@
       float samp = 0.0;
       float blue = 0.0;
 
-      int shades = 4;//54;
+      int shades = 7;//54;
 
       float degrader = 0.0;
 
@@ -686,12 +689,13 @@
         float pitch_part = mod(position.y * string_count, float(pitch_count));
         if( pitch_part - float(i) >= 0.0 && pitch_part - float(i) < 1.0 ) {
           float vertical_part = pitch_part - float(i);
+          float intensity = 0.85;
           sing = norm(sin(
             seconds * pitches[i] * 2.0 * pi
-          )) * position.x;
+          ) * intensity ) * position.x;
           sing += norm(sin(
             seconds * past_pitches[i] * 2.0 * pi
-          )) * (1.0 - position.x);
+          ) * intensity ) * (1.0 - position.x);
           float red_shade = sing * float(shades);
           float major_shade = floor(red_shade + 0.5);
           float shade_error = major_shade - red_shade;
