@@ -662,8 +662,8 @@
     void main() {
       float extra_offset = coords.x / sample_rate;
       float seconds = offset_seconds + extra_offset;
-      float red = 0.0;
-      float green = 0.0;
+      float sing = 0.0;
+      float samp = 0.0;
       float blue = 0.0;
 
       int shades = 4;//54;
@@ -674,20 +674,20 @@
         float pitch_part = mod(position.y * string_count, float(pitch_count));
         if( pitch_part - float(i) >= 0.0 && pitch_part - float(i) < 1.0 ) {
           float vertical_part = pitch_part - float(i);
-          red = norm(sin(
+          sing = norm(sin(
             seconds * pitches[i] * 2.0 * pi
           )) * position.x;
-          red += norm(sin(
+          sing += norm(sin(
             seconds * past_pitches[i] * 2.0 * pi
           )) * (1.0 - position.x);
-          float red_shade = red * float(shades);
+          float red_shade = sing * float(shades);
           float major_shade = floor(red_shade + 0.5);
           float shade_error = major_shade - red_shade;
-          red = major_shade / float(shades);
+          sing = major_shade / float(shades);
           if(shade_error > 0.0 && vertical_part < shade_error) {
-            red -= (1.0 / float(shades)) * sign(shade_error);
+            sing -= (1.0 / float(shades)) * sign(shade_error);
           } else if (shade_error < 0.0 && 1.0-vertical_part < -shade_error) {
-            red -= (1.0 / float(shades)) * sign(shade_error);
+            sing -= (1.0 / float(shades)) * sign(shade_error);
           }
         }
       }
@@ -729,7 +729,7 @@
         samplep = texture2D(image5, sample_position_past);
       }
 
-      green = (0.5 * (1.0 - sample.a) + rgb2grey(sample.rgb) * sample.a) * position.x
+      samp = (0.5 * (1.0 - sample.a) + rgb2grey(sample.rgb) * sample.a) * position.x
             + (0.5 * (1.0 - samplep.a) + rgb2grey(samplep.rgb) * samplep.a) * (1.0 - position.x)
       ;
 
@@ -738,12 +738,12 @@
       //blue = (blue + blueSample.b) / 2.0;
 
       //vec2 c = vec2( 0.36 + 0.05 * cos(seconds * 120.0 / 60.0 * tau), 0.1);
-      float white = sqrt(red * green);
+      float shine = (sing + samp - 1.0) + 0.5;
 
-      gl_FragColor.rgba = vec4(red, green, white, 1.0);
-      //gl_FragColor.rgba = vec4(green, green, green, 1.0);
+      gl_FragColor.rgba = vec4(samp, shine, sing, 1.0);
+      //gl_FragColor.rgba = vec4(samp, samp, samp, 1.0);
 
-      //gl_FragColor.rgba = vec4(red, green, white, 1.0);
+      //gl_FragColor.rgba = vec4(sing, samp, shine, 1.0);
     }
     </script>
     <script id="display-fragment-shader" type="x-shader/x-fragment">
@@ -774,8 +774,8 @@
           acc = acc + int(sample.r * 255.0) + int(sample.g * 255.0) + int(sample.b * 255.0);
         }
       }
-      float red = float(acc) / (float(height) * 255.0 * 3.0 / 2.0) - 1.0;
-      gl_FragColor.rgba = vec4(red, height, red, red);
+      float amp = float(acc) / (float(height) * 255.0 * 3.0 / 2.0) - 1.0;
+      gl_FragColor.rgba = vec4(amp, height, amp, amp);
     }
     </script>
     <script id="time-domain-display-fragment-shader" type="x-shader/x-fragment">
