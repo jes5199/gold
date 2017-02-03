@@ -26,13 +26,12 @@
     var image_count = 3;
 
     var patterns = [
-      [220],
-    //[ntv[5], ntv[2], ntv[5], ntv[0], ntv[5], ntv[2], ntv[1], ntv[0],
-    // ntv[5], ntv[2], ntv[5], ntv[2], ntv[5], ntv[2], ntv[1], ntv[0]],
-    //[ntv[3], ntv[1], ntv[5]],
-    //[ntv[5], ntv[2], ntv[5], ntv[0], ntv[5], ntv[2], ntv[1], ntv[0],
-    // ntv[5], ntv[2], ntv[5], ntv[2], ntv[5], ntv[2], ntv[1], ntv[0]],
-    //[ntv[3], ntv[1], ntv[5], ntv[4], ntv[0]],
+      [ntv[5], ntv[2], ntv[5], ntv[0], ntv[5], ntv[2], ntv[1], ntv[0],
+       ntv[5], ntv[2], ntv[5], ntv[2], ntv[5], ntv[2], ntv[1], ntv[0]],
+      [ntv[3], ntv[1], ntv[5]],
+      [ntv[5], ntv[2], ntv[5], ntv[0], ntv[5], ntv[2], ntv[1], ntv[0],
+       ntv[5], ntv[2], ntv[5], ntv[2], ntv[5], ntv[2], ntv[1], ntv[0]],
+      [ntv[3], ntv[1], ntv[5], ntv[4], ntv[0]],
     //[ntv[1], ntv[5], ntv[5]],
     //[ntv[1], ntv[2], ntv[3], ntv[4], ntv[5], ntv[6], ntv[7], ntv[8]],
     //[ntv[3], ntv[1], ntv[5]],
@@ -41,15 +40,15 @@
     //[ntv[1], ntv[4], ntv[2], ntv[5], ntv[8]],
     ];
     var samplePatterns = [
-    //[ntv[0], ntv[5], ntv[2], ntv[5], ntv[0], ntv[5],
-    // ntv[2], ntv[1], ntv[0], ntv[5], ntv[2], ntv[5], ntv[2], ntv[5],
-    // ntv[2], ntv[1], ntv[0], ntv[0], ntv[0]],
-    //[ntv[0], ntv[5], ntv[2], ntv[5], ntv[0], ntv[5],
-    // ntv[2], ntv[1], ntv[0], ntv[5], ntv[2], ntv[5], ntv[2], ntv[5],
-    // ntv[2], ntv[1], ntv[0]],
-    //[ntv[5], ntv[2], ntv[5], ntv[1], ntv[0],
-    // ntv[2], ntv[1], ntv[0], ntv[5], ntv[0], ntv[0], ntv[2], ntv[5],
-    // ntv[2], ntv[1], ntv[0], ntv[1]],
+      [ntv[0], ntv[5], ntv[2], ntv[5], ntv[0], ntv[5],
+       ntv[2], ntv[1], ntv[0], ntv[5], ntv[2], ntv[5], ntv[2], ntv[5],
+       ntv[2], ntv[1], ntv[0], ntv[0], ntv[0]],
+      [ntv[0], ntv[5], ntv[2], ntv[5], ntv[0], ntv[5],
+       ntv[2], ntv[1], ntv[0], ntv[5], ntv[2], ntv[5], ntv[2], ntv[5],
+       ntv[2], ntv[1], ntv[0]],
+      [ntv[5], ntv[2], ntv[5], ntv[1], ntv[0],
+       ntv[2], ntv[1], ntv[0], ntv[5], ntv[0], ntv[0], ntv[2], ntv[5],
+       ntv[2], ntv[1], ntv[0], ntv[1]],
     //[ntv[1], ntv[2], ntv[3], ntv[4], ntv[5], ntv[6], ntv[7], ntv[8]],
     //[ntv[8], ntv[8], ntv[6], ntv[6], ntv[0], ntv[0], ntv[0], ntv[0]],
     //[ntv[8], ntv[8], ntv[8], ntv[8], ntv[0], ntv[0], ntv[0], ntv[0]],
@@ -177,8 +176,7 @@
       }
 
       frameCount += 1;
-      //frameCount %= 11025; // lcm(1024, 44100) / 1024
-      frameCount %= (44100 / 1024) * (bpm / 60) * 8;
+      frameCount %= 11025; // lcm(1024, 44100) / 1024
     }
 
     function compile_vertex_shader(id) {
@@ -659,13 +657,9 @@
           //my_offset = (float(frame_count) * 1024.0 + coords.x) / 44100.0;
             //my_offset * tau * pitches[i]
           float my_sample_count = float(frame_count) * 1024.0 + coords.x;
-          float my_left_zero = ceil( float(frame_count)*1024.0 / (44100.0 / pitches[i])) * (44100.0 / pitches[i]);
-          float my_right_zero = floor( float(frame_count + 1)*1024.0 / (44100.0 / pitches[i])) * (44100.0 / pitches[i]);
           red = norm(sin(
-            (mod(my_sample_count, 44100.0/pitches[i])) / 44100.0 * pitches[i] * tau
+            (mod(my_sample_count / 44100.0, 1.0/pitches[i])) * pitches[i] * 2.0 * pi
           ));
-          if(my_left_zero > my_sample_count) { red = 0.5; }
-          if(my_right_zero < my_sample_count) { red = 0.5; }
           float red_shade = red * float(shades);
           float major_shade = floor(red_shade + 0.5);
           float shade_error = major_shade - red_shade;
