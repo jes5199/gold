@@ -13,27 +13,49 @@
 
     var fftSize = Math.pow(2, 12);
 
+    var approxCycleSeconds = 10.0;
+    var frameCycle = Math.floor(44100 * approxCycleSeconds / 1024);
+    var lockCycle = frameCycle * 1024 / 44100;
+    var lockFreq = 1 / lockCycle;
+
     var e1 = 41.20;
     var f1 = 43.65;
     var freq = resonance;
-    var base = freq * 5.0;
-    //var base = 260.74;
+    var base = freq * 4.0;
+    //base = 220;
+    var base = 260.74 / 2;
     console.log(base);
     //base = 29.97;
     var ntv = [0, base, base * 9/8, base * 81/64, base * 4/3, base * 3/2, base * 27/16, base * 243/128, base * 2]
+    console.log(lockCycle);
+    console.log(ntv);
+
+    for(var x = 0; x < ntv.length; x++){
+      var newval = Math.floor(ntv[x] / lockFreq) * lockFreq;
+      var ratio = (ntv[x] / newval);
+      var cents = (Math.log(ratio) / Math.log(2)) * 1200;
+      console.log(cents);
+      ntv[x] = newval;
+    }
+    console.log(ntv);
 
     var string_count = 4;
     var image_count = 3;
 
     var patterns = [
+   // [ntv[3], ntv[4], ntv[5], ntv[6], ntv[7], ntv[8]],
+   // [ntv[1], ntv[2], ntv[3], ntv[4], ntv[5], ntv[6], ntv[7], ntv[8]],
+   // [ntv[1], ntv[2], ntv[3], ntv[4], ntv[5], ntv[6], ntv[7], ntv[8]],
+   // [ntv[1], ntv[2], ntv[3], ntv[4], ntv[5], ntv[6], ntv[7], ntv[8]],
+   // [ntv[1], ntv[2], ntv[3], ntv[4], ntv[5], ntv[6], ntv[7], ntv[8]],
+   // [ntv[1], ntv[2], ntv[3], ntv[4], ntv[5], ntv[6], ntv[7], ntv[8]],
       [ntv[5], ntv[2], ntv[5], ntv[0], ntv[5], ntv[2], ntv[1], ntv[0],
        ntv[5], ntv[2], ntv[5], ntv[2], ntv[5], ntv[2], ntv[1], ntv[0]],
       [ntv[3], ntv[1], ntv[5]],
       [ntv[5], ntv[2], ntv[5], ntv[0], ntv[5], ntv[2], ntv[1], ntv[0],
        ntv[5], ntv[2], ntv[5], ntv[2], ntv[5], ntv[2], ntv[1], ntv[0]],
       [ntv[3], ntv[1], ntv[5], ntv[4], ntv[0]],
-    //[ntv[1], ntv[5], ntv[5]],
-    //[ntv[1], ntv[2], ntv[3], ntv[4], ntv[5], ntv[6], ntv[7], ntv[8]],
+      [ntv[1], ntv[5], ntv[5]],
     //[ntv[3], ntv[1], ntv[5]],
     //[ntv[4], ntv[5]],
     //[ntv[7], ntv[6], ntv[5], ntv[1]],
@@ -176,7 +198,8 @@
       }
 
       frameCount += 1;
-      frameCount %= 11025; // lcm(1024, 44100) / 1024
+      //frameCount %= 11025; // lcm(1024, 44100) / 1024
+      frameCount %= frameCycle;
     }
 
     function compile_vertex_shader(id) {
@@ -236,7 +259,7 @@
 
     function start() {
       canvas = document.getElementById("glcanvas");
-      gl = canvas.getContext("webgl") || canvas.getContext("webgl");
+      gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
 
       var positions = [
         0, 0,
@@ -409,7 +432,6 @@
       gl.useProgram(freq_domain_display_program);
       //gl.uniform1f(gl.getUniformLocation(freq_domain_display_program, "blue_freq"), imageFrequencies[0]);
       gl.drawArrays(gl.TRIANGLES, 0, 6);
-
 
       requestAnimationFrame(animate);
     }
@@ -643,7 +665,7 @@
       float green = 0.0;
       float blue = 0.0;
 
-      int shades = 1;//54;
+      int shades = 3;//54;
 
       float degrader = 0.0;
 
@@ -659,6 +681,9 @@
           float my_sample_count = float(frame_count) * 1024.0 + coords.x;
           red = norm(sin(
             (mod(my_sample_count / 44100.0, 1.0/pitches[i])) * pitches[i] * 2.0 * pi
+          ));
+          red = norm(sin(
+            my_sample_count / 44100.0 * pitches[i] * 2.0 * pi
           ));
           float red_shade = red * float(shades);
           float major_shade = floor(red_shade + 0.5);
