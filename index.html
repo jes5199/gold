@@ -23,7 +23,7 @@
     var freq = resonance;
     var base = freq * 4.0;
     //base = 220;
-    var base = 260.74 / 2;
+    //var base = 260.74 / 2;
     console.log(base);
     //base = 29.97;
     var ntv = [0, base, base * 9/8, base * 81/64, base * 4/3, base * 3/2, base * 27/16, base * 243/128, base * 2]
@@ -62,6 +62,7 @@
     //[ntv[1], ntv[4], ntv[2], ntv[5], ntv[8]],
     ];
     var samplePatterns = [
+   // [ntv[5]],
       [ntv[0], ntv[5], ntv[2], ntv[5], ntv[0], ntv[5],
        ntv[2], ntv[1], ntv[0], ntv[5], ntv[2], ntv[5], ntv[2], ntv[5],
        ntv[2], ntv[1], ntv[0], ntv[0], ntv[0]],
@@ -93,13 +94,17 @@
                    0, 0, 0, 0, 0, 0, 0, 0,
                    0, 0, 0, 0, 0, 0, 0, 0];
 
-    var imageFrequencies = [
+    var past_pitches = pitches;
+
+    var image_freqs = [
       ntv[0],
       ntv[0],
       ntv[0],
       ntv[0],
       ntv[0],
     ];
+
+    var past_image_freqs = image_freqs;
 
     var images = [new Image(), new Image(), new Image(), new Image(), new Image(), new Image(1024, 512)];
       //images[0].src = "images/AKWF_cello_0001.wav.png";
@@ -128,9 +133,6 @@
       //images[5].src = "images/jesse-eee.png";
       //images[5].src = "images/lion.webp";
       //images[5].src = "images/AKWF_vgame_0070.wav.blob.png";
-
-    var pitchesOffsets = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
-    var imagesOffsets = [0,0,0,0,0];
 
     var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     var scriptNode = audioCtx.createScriptProcessor(1024, 0, 1);
@@ -198,8 +200,9 @@
       }
 
       frameCount += 1;
-      //frameCount %= 11025; // lcm(1024, 44100) / 1024
       frameCount %= frameCycle;
+      past_pitches = pitches.slice(0);
+      past_image_freqs = image_freqs.slice(0);
     }
 
     function compile_vertex_shader(id) {
@@ -344,15 +347,21 @@
       gainNode.gain.value = 1.0;
 
       var filterNode = audioCtx.createBiquadFilter();
-      filterNode.type = "lowpass";
-      filterNode.frequency.value = 2500;
-      filterNode.Q.value = 1.01;
+      filterNode.type = "highpass";
+      filterNode.frequency.value = 100;
+      filterNode.Q.value = 1.000;
+
+      var screechFilterNode = audioCtx.createBiquadFilter();
+      screechFilterNode.type = "highshelf";
+      screechFilterNode.frequency.value = 3840;
+      screechFilterNode.gain.value = -36.000;
 
       analyserNode = audioCtx.createAnalyser();
       analyserNode.fftSize = fftSize;
       fftArray = new Uint8Array(analyserNode.frequencyBinCount);
 
-      scriptNode.connect(filterNode);
+      scriptNode.connect(screechFilterNode);
+      screechFilterNode.connect(filterNode);
       filterNode.connect(gainNode);
       //scriptNode.connect(gainNode);
       gainNode.connect(analyserNode);
@@ -375,6 +384,7 @@
       gl.useProgram(main_program);
 
       gl.uniform1fv(gl.getUniformLocation(main_program, "pitches"), pitches);
+      gl.uniform1fv(gl.getUniformLocation(main_program, "past_pitches"), past_pitches);
       gl.uniform1i(gl.getUniformLocation(main_program, "pitch_count"), 32);
       gl.uniform2f(gl.getUniformLocation(main_program, "u_resolution"), main_width, main_height);
 
@@ -388,7 +398,8 @@
 
       gl.uniform1f(gl.getUniformLocation(main_program, "bpm"), bpm);
 
-      gl.uniform1fv(gl.getUniformLocation(main_program, "image_freqs"), imageFrequencies);
+      gl.uniform1fv(gl.getUniformLocation(main_program, "image_freqs"), image_freqs);
+      gl.uniform1fv(gl.getUniformLocation(main_program, "past_image_freqs"), past_image_freqs);
     }
 
     function setFramebuffer(fbo, width, height, offset_x = 0, offset_y = 0) {
@@ -408,11 +419,6 @@
       gl.useProgram(time_domain_program);
       setFramebuffer(time_domain_fbo, main_width, 1);
       gl.drawArrays(gl.TRIANGLES, 0, 6);
-
-    //setFramebuffer(long_time_domain_fbo, main_width, 1, main_width * drawLongTimePart);
-    //gl.drawArrays(gl.TRIANGLES, 0, 6);
-    //drawLongTimePart += 1;
-    //drawLongTimePart %= longTimeMultiple;
     }
 
     function animate() {
@@ -430,7 +436,6 @@
 
       setFramebuffer(null, 50, main_height + 100, main_width, 0);
       gl.useProgram(freq_domain_display_program);
-      //gl.uniform1f(gl.getUniformLocation(freq_domain_display_program, "blue_freq"), imageFrequencies[0]);
       gl.drawArrays(gl.TRIANGLES, 0, 6);
 
       requestAnimationFrame(animate);
@@ -456,17 +461,12 @@
 
       var beats = Math.floor(millis / 1000.0 / 60 * bpm);
 
-    //imageFrequencies[0] += 1.0;
-    //setTimeout(changeNotes, javascriptTimeout * 20);
-    //return;
-
       for(var i = 0; i < patterns.length; i++) {
         var pattern = patterns[i];
         if(pattern.length > 0) {
           var pitch = pattern[beats % pattern.length];
           if(pitches[i] != pitch) {
             pitches[i] = pitch;
-            //pitchesOffsets[i] = 0;
           }
         }
       }
@@ -475,9 +475,8 @@
         var pattern = samplePatterns[i];
         if(pattern.length > 0) {
           var pitch = pattern[beats % pattern.length];
-          if(imageFrequencies[i] != pitch) {
-            imageFrequencies[i] = pitch;
-            //imagesOffsets[i] = 0;
+          if(image_freqs[i] != pitch) {
+            image_freqs[i] = pitch;
           }
         }
       }
@@ -605,6 +604,7 @@
     uniform float offset_seconds;
     uniform int frame_count;
     uniform float pitches[32];
+    uniform float past_pitches[32];
     uniform int pitch_count;
     uniform float string_count;
     uniform sampler2D image1;
@@ -617,6 +617,7 @@
 
     uniform float image_bands;
     uniform float image_freqs[5];
+    uniform float past_image_freqs[5];
 
     uniform float bpm;
 
@@ -660,12 +661,12 @@
 
     void main() {
       float extra_offset = coords.x / sample_rate;
-      float seconds = offset_seconds + offset_seconds + extra_offset;
+      float seconds = offset_seconds + extra_offset;
       float red = 0.0;
       float green = 0.0;
       float blue = 0.0;
 
-      int shades = 3;//54;
+      int shades = 4;//54;
 
       float degrader = 0.0;
 
@@ -673,15 +674,12 @@
         float pitch_part = mod(position.y * string_count, float(pitch_count));
         if( pitch_part - float(i) >= 0.0 && pitch_part - float(i) < 1.0 ) {
           float vertical_part = pitch_part - float(i);
-          float my_offset = offset_seconds + extra_offset;
-          //float my_offset = offset_seconds + offset_seconds + extra_offset;
-          //red = norm(sin((float(frame_count) + pow(2.0, degrader)) * tau * pitches[i] * 44100.0 / 1024.0));
-          //my_offset = (float(frame_count) * 1024.0 + coords.x) / 44100.0;
-            //my_offset * tau * pitches[i]
-          float my_sample_count = float(frame_count) * 1024.0 + coords.x;
           red = norm(sin(
-            my_sample_count / 44100.0 * pitches[i] * 2.0 * pi
-          ));
+            seconds * pitches[i] * 2.0 * pi
+          )) * position.x;
+          red += norm(sin(
+            seconds * past_pitches[i] * 2.0 * pi
+          )) * (1.0 - position.x);
           float red_shade = red * float(shades);
           float major_shade = floor(red_shade + 0.5);
           float shade_error = major_shade - red_shade;
@@ -700,31 +698,40 @@
 
       float image_frequency = 43.06640625 * 4.0;
       float image_x;
+      float image_xp;
 
       for(int i = 0; i < 5; i++) {
         if(int(image_band_num) == i) {
           image_frequency = image_freqs[i];
-          float my_offset = offset_seconds + extra_offset;
-          image_x = mod(my_offset * image_freqs[i], 1.0);
+          image_x = mod(seconds * image_freqs[i], 1.0);
+          image_xp = mod(seconds * past_image_freqs[i], 1.0);
         }
       }
 
       vec2 sample_position = vec2(image_x, image_y);
+      vec2 sample_position_past = vec2(image_xp, image_y);
       vec4 sample;
+      vec4 samplep;
       if(image_band_num == 0.0) {
         sample = texture2D(image1, sample_position);
+        samplep = texture2D(image1, sample_position_past);
       } else if(image_band_num == 1.0) {
         sample = texture2D(image2, sample_position);
+        samplep = texture2D(image2, sample_position_past);
       } else if(image_band_num == 2.0) {
         sample = texture2D(image3, sample_position);
+        samplep = texture2D(image3, sample_position_past);
       } else if(image_band_num == 3.0) {
         sample = texture2D(image4, sample_position);
+        samplep = texture2D(image4, sample_position_past);
       } else {
         sample = texture2D(image5, sample_position);
+        samplep = texture2D(image5, sample_position_past);
       }
 
-      float green_channel = rgb2grey(sample.rgb);
-      green = (0.5 * (1.0 - sample.a) + green_channel * sample.a);
+      green = (0.5 * (1.0 - sample.a) + rgb2grey(sample.rgb) * sample.a) * position.x
+            + (0.5 * (1.0 - samplep.a) + rgb2grey(samplep.rgb) * samplep.a) * (1.0 - position.x)
+      ;
 
       vec4 blueSample = texture2D(image6, (position * vec2(1,-1.0) + vec2(0,1)));
       blue = blueSample.a * rgb2grey(blueSample.rgb) + (0.5 * (1.0 - blueSample.a));
@@ -811,9 +818,9 @@
       vec4 sample;
 
       sample = texture2D(image, vec2(position.y / 2.0, 1));
-      color = sample.a * 2.0;
+      color = sample.a;
 
-      gl_FragColor.rgba = vec4(color, 0.0, 0.0, 1.0);
+      gl_FragColor.rgba = vec4(color * 15.0, color * 3.0, color, 1.0);
     }
     </script>
     <script id="automataWorker" type="javascript/worker">
