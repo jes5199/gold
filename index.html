@@ -1,10 +1,6 @@
 <html>
   <head>
     <script>
-    function midi2freq(note) {
-      return Math.pow(2,(note - 69) / 12) * 440.0;
-    }
-
     var period = 1024 / 44100; // seconds
     var resonance = 44100 / 1024; // hz
 
@@ -13,7 +9,7 @@
 
     var fftSize = Math.pow(2, 12);
 
-    var approxCycleSeconds = 10.0;
+    var approxCycleSeconds = 20.0;
     var frameCycle = Math.floor(44100 * approxCycleSeconds / 1024);
     var lockCycle = frameCycle * 1024 / 44100;
     var lockFreq = 1 / lockCycle;
@@ -21,17 +17,26 @@
     var e1 = 41.20;
     var f1 = 43.65;
     var freq = resonance;
-    var base = freq * 5.0 * 1.004;
+    var base = freq * 10.0 * 1.000;
+    //base = 440;
     //base = 220;
-    //var base = 260.74 / 2;
+    //base = 260.74 * 2;
     console.log(base + " hz base tone");
     //base = 29.97;
     var ntv = [0, base, base * 9/8, base * 81/64, base * 4/3, base * 3/2, base * 27/16, base * 243/128, base * 2]
     console.log(lockCycle + " seconds shared resonance");
-    //console.log(ntv);
+    console.log(ntv);
+
+    function safeFreq(f) {
+      return Math.floor(f / lockFreq) * lockFreq;
+    }
+
+    function midi2freq(note) {
+      return safeFreq( Math.pow(2,(note - 69) / 12) * base);
+    }
 
     for(var x = 0; x < ntv.length; x++){
-      var newval = Math.floor(ntv[x] / lockFreq) * lockFreq;
+      var newval = safeFreq(ntv[x]);
       var ratio = (ntv[x] / newval);
       var cents = (Math.log(ratio) / Math.log(2)) * 1200;
       console.log(cents);
@@ -39,66 +44,32 @@
     }
     //console.log(ntv);
 
-    var string_count = 4;
+    var twelveToneToString = {
+      // white keys only
+      0: 0,
+      2: 1,
+      4: 2,
+      5: 3,
+      7: 4,
+      9: 5,
+      11: 6,
+    };
+
+    var twelveToneToImage = {
+      // black keys only
+      1: 0,
+      3: 1,
+      6: 2,
+      8: 3,
+      10: 4,
+    };
+
+    var string_count = 7;
     var image_count = 5;
 
     var patterns = [
-      [ntv[8], ntv[7], ntv[6]],
-      [ntv[1], ntv[3], ntv[1]],
-      [ntv[5], ntv[4], ntv[1], ntv[5]],
-      [ntv[1]],
-   // [ntv[3], ntv[4], ntv[5], ntv[6], ntv[7], ntv[8]],
-   // [ntv[1], ntv[2], ntv[3], ntv[4], ntv[5], ntv[6], ntv[7], ntv[8]],
-   // [ntv[1], ntv[2], ntv[3], ntv[4], ntv[5], ntv[6], ntv[7], ntv[8]],
-   // [ntv[1], ntv[2], ntv[3], ntv[4], ntv[5], ntv[6], ntv[7], ntv[8]],
-   // [ntv[1], ntv[2], ntv[3], ntv[4], ntv[5], ntv[6], ntv[7], ntv[8]],
-   // [ntv[1], ntv[2], ntv[3], ntv[4], ntv[5], ntv[6], ntv[7], ntv[8]],
-  //  [ntv[5], ntv[2], ntv[5], ntv[0], ntv[5], ntv[2], ntv[1], ntv[0],
-  //   ntv[5], ntv[2], ntv[5], ntv[2], ntv[5], ntv[2], ntv[1], ntv[0]],
-  //  [ntv[3], ntv[1], ntv[5]],
-  //  [ntv[5], ntv[2], ntv[5], ntv[0], ntv[5], ntv[2], ntv[1], ntv[0],
-  //   ntv[5], ntv[2], ntv[5], ntv[2], ntv[5], ntv[2], ntv[1], ntv[0]],
-  //  [ntv[3], ntv[1], ntv[5], ntv[4], ntv[0]],
-  //  [ntv[1], ntv[5], ntv[5]],
-    //[ntv[3], ntv[1], ntv[5]],
-    //[ntv[4], ntv[5]],
-    //[ntv[7], ntv[6], ntv[5], ntv[1]],
-    //[ntv[1], ntv[4], ntv[2], ntv[5], ntv[8]],
     ];
     var samplePatterns = [
-      [ntv[1], ntv[7], ntv[6], ntv[2], ntv[3], ntv[1], ntv[1]],
-      [ntv[1], ntv[7], ntv[6], ntv[2], ntv[3], ntv[1], ntv[1], ntv[1], ntv[1]],
-      [ntv[1], ntv[7], ntv[6], ntv[2], ntv[3], ntv[1], ntv[1], ntv[1], ntv[1], ntv[1], ntv[1]],
-      [ntv[1], ntv[7], ntv[6], ntv[2], ntv[3], ntv[1], ntv[1], ntv[1], ntv[1], ntv[1], ntv[1], ntv[1], ntv[1]],
-      [ntv[1], ntv[7], ntv[6], ntv[2], ntv[3], ntv[1], ntv[1], ntv[1], ntv[1], ntv[1], ntv[1], ntv[1], ntv[1], ntv[1], ntv[1]],
-      [0, 0, ntv[1], 0, 0, ntv[1]],
-      [0, 0, 0, ntv[1], 0, ntv[1]],
-      [0, 0, 0, 0, ntv[1], ntv[1]],
-    //[ntv[1], ntv[1], ntv[4], ntv[8], 0,0,0,0, 0,0,0,0],
-    //[0,0,0,0, ntv[1], ntv[1], ntv[4], ntv[8], 0,0,0,0],
-    //[0,0,0,0, 0,0,0,0, ntv[1], ntv[1], ntv[4], ntv[8]],
-   // [ntv[5]],
-  //  [ntv[0], ntv[5], ntv[2], ntv[5], ntv[0], ntv[5],
-  //   ntv[2], ntv[1], ntv[0], ntv[5], ntv[2], ntv[5], ntv[2], ntv[5],
-  //   ntv[2], ntv[1], ntv[0], ntv[0], ntv[0]],
-  //  [ntv[0], ntv[5], ntv[2], ntv[5], ntv[0], ntv[5],
-  //   ntv[2], ntv[1], ntv[0], ntv[5], ntv[2], ntv[5], ntv[2], ntv[5],
-  //   ntv[2], ntv[1], ntv[0]],
-  //  [ntv[5], ntv[2], ntv[5], ntv[1], ntv[0],
-  //   ntv[2], ntv[1], ntv[0], ntv[5], ntv[0], ntv[0], ntv[2], ntv[5],
-  //   ntv[2], ntv[1], ntv[0], ntv[1]],
-    //[ntv[1], ntv[2], ntv[3], ntv[4], ntv[5], ntv[6], ntv[7], ntv[8]],
-    //[ntv[8], ntv[8], ntv[6], ntv[6], ntv[0], ntv[0], ntv[0], ntv[0]],
-    //[ntv[8], ntv[8], ntv[8], ntv[8], ntv[0], ntv[0], ntv[0], ntv[0]],
-    //[ntv[1], ntv[2], ntv[3], ntv[4], ntv[5], ntv[6], ntv[7], ntv[8]],
-    //[ntv[1], ntv[2], ntv[3], ntv[4], ntv[5], ntv[6], ntv[7], ntv[8]],
-    //[ntv[1], ntv[2], ntv[3], ntv[4], ntv[5], ntv[6], ntv[7], ntv[8]],
-    //[ntv[1], ntv[2], ntv[3], ntv[4], ntv[5], ntv[6], ntv[7], ntv[8]],
-    //[ntv[1], ntv[3], ntv[5]],
-    //[ntv[4], ntv[5]],
-    //[ntv[7], ntv[6], ntv[5], ntv[1]],
-    //[ntv[1], ntv[4], ntv[2], ntv[5], ntv[8]],
-    //[ntv[7], ntv[6], ntv[5], ntv[1]],
     ];
 
     var bpm = 80;
@@ -122,7 +93,6 @@
     var past_image_freqs = image_freqs;
 
     var images = [new Image(), new Image(), new Image(), new Image(), new Image(), new Image(1024, 512)];
-      //images[0].src = "images/AKWF_cello_0001.wav.png";
       //images[2].src = "images/lion.webp";
       //images[2].src = "squarewave.png";
       //images[3].src = "AKWF_piano_0001.8.png";
@@ -149,10 +119,18 @@
       //images[5].src = "images/lion.webp";
       //images[5].src = "images/AKWF_vgame_0070.wav.blob.png";
 
+      images[0].src = "images/AKWF_vgsin_0004.wav.blob.png";
+      images[1].src = "images/AKWF_vgsin_0004.wav.blob.png";
+      images[2].src = "images/AKWF_vgsin_0004.wav.blob.png";
+      images[3].src = "images/AKWF_vgsin_0004.wav.blob.png";
+      images[4].src = "images/AKWF_vgsin_0004.wav.blob.png";
+      images[5].src = "images/AKWF_vgsin_0004.wav.blob.png";
+
     var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     var scriptNode = audioCtx.createScriptProcessor(1024, 0, 1);
 
     var midi;
+    var midi_input;
 
     var canvas;
     var gl;
@@ -361,26 +339,25 @@
 
     function setupAudio() {
       var gainNode = audioCtx.createGain();
-      gainNode.gain.value = 1.0;
-
-      var filterNode = audioCtx.createBiquadFilter();
-      filterNode.type = "highpass";
-      filterNode.frequency.value = 100;
-      filterNode.Q.value = 1.000;
+      gainNode.gain.value = 0.4;
 
       var screechFilterNode = audioCtx.createBiquadFilter();
       screechFilterNode.type = "highshelf";
       screechFilterNode.frequency.value = 3540;
       screechFilterNode.gain.value = -36.000;
 
+      var filterNode = audioCtx.createBiquadFilter();
+      filterNode.type = "lowpass";
+      filterNode.frequency.value = 12000;
+      filterNode.Q.value = 1.000;
+
       analyserNode = audioCtx.createAnalyser();
       analyserNode.fftSize = fftSize;
       fftArray = new Uint8Array(analyserNode.frequencyBinCount);
 
-      scriptNode.connect(screechFilterNode);
+      scriptNode.connect(analyserNode);
       screechFilterNode.connect(filterNode);
       filterNode.connect(gainNode);
-      //scriptNode.connect(gainNode);
       gainNode.connect(analyserNode);
       analyserNode.connect(audioCtx.destination);
     }
@@ -389,7 +366,66 @@
       if(!("requestMIDIAccess" in navigator)) {
         return;
       }
-      navigator.requestMIDIAccess().then(function(midi_access){ midi = midi_access })
+      navigator.requestMIDIAccess().then(function(midi_access){
+        midi = midi_access;
+        midi.onstatechange = getMidiInputs;
+        getMidiInputs();
+      })
+    }
+
+    function getMidiInputs() {
+      console.log("midi inputs: " + midi.inputs.size);
+      if(midi.inputs.size) {
+        midi_input = midi.inputs.values().next().value;
+        midi_input.onmidimessage = handleMidi;
+      }
+    }
+
+    function handleMidi(e) {
+      console.log(e.data);
+      var message_species = e.data[0];
+      if(message_species < 240) { //"channel-specific message"
+        var command = e.data[0] >> 4;
+        var channel = (e.data[0] & 0xf) + 1;
+        console.log("command: " + command + ", channel: " + channel);
+
+        var data1, data2;
+        if (e.data.length > 1) {
+          data1 = e.data[1];
+          data2 = e.data.length > 2 ? e.data[2] : undefined;
+        }
+
+        if( command == 9 ) {
+          note_on(data1, data2);
+        }
+        if( command == 8 ) {
+          note_off(data1, data2);
+        }
+      }
+    }
+
+    function note_on(num, vel) {
+      if(vel == 0) { return note_off(num, vel); } // sigh.
+      var pitch = midi2freq(num);
+      console.log("playing " + num + ":" + pitch + " hz");
+      var interval = num % 12;
+
+      if(interval in twelveToneToString) {
+        pitches[twelveToneToString[interval]] = pitch;
+      }
+      if(interval in twelveToneToImage) {
+        image_freqs[twelveToneToImage[interval]] = pitch;
+      }
+    }
+
+    function note_off(num, vel) {
+      var interval = num % 12;
+      if(interval in twelveToneToString) {
+        pitches[twelveToneToString[interval]] = 0;
+      }
+      if(interval in twelveToneToImage) {
+        image_freqs[twelveToneToImage[interval]] = 0;
+      }
     }
 
     function setupWorker(){
@@ -690,7 +726,7 @@
       float samp = 0.0;
       float blue = 0.0;
 
-      int shades = 7;//54;
+      int shades = 2;//54;
 
       float degrader = 0.0;
 
@@ -698,9 +734,10 @@
         float pitch_part = mod(position.y * string_count, float(pitch_count));
         if( pitch_part - float(i) >= 0.0 && pitch_part - float(i) < 1.0 ) {
           float vertical_part = pitch_part - float(i);
-          float intensity = 0.85;
+          float intensity = 1.10;
           float fshades = float(shades);
           fshades = pow(2.0, floor(position.x * 4.0));
+          fshades = float(shades);
           sing = norm(sin(
             seconds * pitches[i] * 2.0 * pi
           ) * intensity ) * position.x;
@@ -723,20 +760,23 @@
       float image_vertical_offset = (image_band_num / image_bands);
       float image_y = 1.0 - (position.y - image_vertical_offset) * image_bands;
 
-      float image_frequency = 43.06640625 * 4.0;
+      float image_frequency;
+      float previous_image_frequency;
       float image_x;
       float image_xp;
 
       for(int i = 0; i < 5; i++) {
         if(int(image_band_num) == i) {
           image_frequency = image_freqs[i];
+          previous_image_frequency = past_image_freqs[i];
           image_x = mod(seconds * image_freqs[i], 1.0);
           image_xp = mod(seconds * past_image_freqs[i], 1.0);
         }
       }
 
-      vec2 sample_position = vec2(image_x, image_y);
-      vec2 sample_position_past = vec2(image_xp, image_y);
+      float height = 0.8;
+      vec2 sample_position = vec2(image_x, image_y / height );
+      vec2 sample_position_past = vec2(image_xp, image_y / height );
       vec4 sample;
       vec4 samplep;
       if(image_band_num == 0.0) {
@@ -754,6 +794,17 @@
       } else {
         sample = texture2D(image5, sample_position);
         samplep = texture2D(image5, sample_position_past);
+      }
+
+      if(image_frequency == 0.0){
+        sample = vec4(0.5, 0.5, 0.5, 1.0);
+      }
+      if(previous_image_frequency == 0.0){
+        samplep = vec4(0.5, 0.5, 0.5, 1.0);
+      }
+      if(sample_position.y >= 1.0 || sample_position.y < 0.0){
+        sample = vec4(0.5, 0.5, 0.5, 1.0);
+        samplep = vec4(0.5, 0.5, 0.5, 1.0);
       }
 
       samp = (0.5 * (1.0 - sample.a) + rgb2grey(sample.rgb) * sample.a) * position.x
@@ -847,7 +898,7 @@
       sample = texture2D(image, vec2(position.y / 2.0, 1));
       color = sample.a;
 
-      gl_FragColor.rgba = vec4(color * 15.0, color * 3.0, color, 1.0);
+      gl_FragColor.rgba = vec4(color * 250.0, color * 3.0, color, 1.0);
     }
     </script>
     <script id="automataWorker" type="javascript/worker">
