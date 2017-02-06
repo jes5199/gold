@@ -350,7 +350,7 @@
 
       time_domain_output_fbo = gl.createFramebuffer();
       gl.bindFramebuffer(gl.FRAMEBUFFER, time_domain_output_fbo);
-      time_domain_output_texture = makeTimeDomainOutputTexture(gl.TEXTURE9, main_width);
+      time_domain_output_texture = makeTimeDomainOutputTexture(gl.TEXTURE8, main_width);
       gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, time_domain_output_texture, 0);
 
       var time_domain_output_fragment_shader = compile_fragment_shader("time-domain-output-fragment-shader");
@@ -374,7 +374,7 @@
       assign_positions(freq_domain_display_program, "a_position", positions);
       gl.useProgram(freq_domain_display_program);
       imageLocation = gl.getUniformLocation(freq_domain_display_program, "image");
-      gl.uniform1i(imageLocation, 9);
+      gl.uniform1i(imageLocation, 8);
     }
 
     function setupAudio() {
@@ -477,7 +477,7 @@
       gl.drawArrays(gl.TRIANGLES, 0, 6);
 
       analyserNode.getByteFrequencyData(fftArray);
-      gl.activeTexture(gl.TEXTURE9);
+      gl.activeTexture(gl.TEXTURE8);
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.ALPHA, analyserNode.frequencyBinCount, 1, 0, gl.ALPHA, gl.UNSIGNED_BYTE, fftArray);
 
       setFramebuffer(null, 50, main_height + 100, main_width, 0);
@@ -548,7 +548,7 @@
 
     function makeFftTexture() {
       var texture = gl.createTexture();
-      gl.activeTexture(gl.TEXTURE9);
+      gl.activeTexture(gl.TEXTURE8);
       gl.bindTexture(gl.TEXTURE_2D, texture);
 
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
