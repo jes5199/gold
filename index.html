@@ -70,6 +70,13 @@
     var image_count = 5;
 
     var patterns = [
+      [ntv[1]],
+      [ntv[1]],
+      [ntv[1]],
+      [ntv[1]],
+      [ntv[1]],
+      [ntv[1]],
+      [ntv[1]],
       [ntv[8], ntv[7], ntv[6]],
       [ntv[1], ntv[3], ntv[1]],
       [ntv[5], ntv[4], ntv[1], ntv[5]],
@@ -80,6 +87,11 @@
       [ntv[1]],
     ];
     var samplePatterns = [
+      [ntv[1]],
+      [ntv[1]],
+      [ntv[1]],
+      [ntv[1]],
+      [ntv[1]],
       [ntv[1], ntv[7], ntv[6], ntv[2], ntv[3], ntv[1], ntv[1]],
       [ntv[1], ntv[7], ntv[6], ntv[2], ntv[3], ntv[1], ntv[1], ntv[1], ntv[1]],
       [ntv[1], ntv[7], ntv[6], ntv[2], ntv[3], ntv[1], ntv[1], ntv[1], ntv[1], ntv[1], ntv[1]],
@@ -463,6 +475,7 @@
       gl.uniform1fv(gl.getUniformLocation(main_program, "past_pitches"), past_pitches);
       gl.uniform1i(gl.getUniformLocation(main_program, "pitch_count"), 32);
       gl.uniform2f(gl.getUniformLocation(main_program, "u_resolution"), main_width, main_height);
+      gl.uniform1i(gl.getUniformLocation(main_program, "sing_shades"), ival("sing_shades"));
 
       gl.uniform1f(gl.getUniformLocation(main_program, "sample_rate"), audioCtx.sampleRate);
 
@@ -497,16 +510,20 @@
       gl.drawArrays(gl.TRIANGLES, 0, 6);
     }
 
-    function sval(name) {
-      return(document.getElementById(name).value / 100);
+    function pval(name) {
+      return(ival(name) / 100);
+    }
+
+    function ival(name) {
+      return(document.getElementById(name).value);
     }
 
     function setDisplayUniforms() {
       gl.useProgram(display_program);
       var matrix = [
-        sval(  "sing_red"), sval(  "samp_red"), 0.0, 0.0,
-        sval("sing_green"), sval("samp_green"), 0.0, 0.0,
-        sval( "sing_blue"), sval( "samp_blue"), 0.0, 0.0,
+        pval(  "sing_red"), pval(  "samp_red"), 0.0, 0.0,
+        pval("sing_green"), pval("samp_green"), 0.0, 0.0,
+        pval( "sing_blue"), pval( "samp_blue"), 0.0, 0.0,
         0.0, 0.0, 0.0, 0.0
       ];
       gl.uniformMatrix4fv(gl.getUniformLocation(display_program, "colorTransform"), false, matrix);
@@ -698,10 +715,13 @@
     uniform int offset_seconds_int;
     uniform float offset_seconds;
     uniform int frame_count;
+
     uniform float pitches[32];
     uniform float past_pitches[32];
     uniform int pitch_count;
     uniform float string_count;
+    uniform int sing_shades;
+
     uniform sampler2D image1;
     uniform sampler2D image2;
     uniform sampler2D image3;
@@ -760,7 +780,7 @@
       float sing = 0.0;
       float samp = 0.0;
 
-      int shades = 5;//54;
+      //int sing_shades = 5;//54;
 
       float degrader = 0.0;
 
@@ -769,9 +789,8 @@
         if( pitch_part - float(i) >= 0.0 && pitch_part - float(i) < 1.0 ) {
           float vertical_part = pitch_part - float(i);
           float intensity = 1.10;
-          float fshades = float(shades);
-          fshades = pow(2.0, floor(position.x * 4.0));
-          fshades = float(shades);
+          float fshades = float(sing_shades);
+          //fshades = pow(2.0, floor(position.x * 4.0));
           sing = norm(sin(
             seconds * pitches[i] * 2.0 * pi
           ) * intensity ) * position.x;
@@ -975,6 +994,12 @@
       #page {
         height: 100%
       }
+      #sing_shades {
+        height: 100px;
+        width: 20px;
+        writing-mode: bt-lr; /* IE */
+        -webkit-appearance: slider-vertical; /* WebKit */
+      }
     </style>
   </head>
   <body>
@@ -995,6 +1020,9 @@
             <input type="range" name="samp[red]"   id="samp_red" value="100" min="-100" max="100" step="20"><br>
             <input type="range" name="samp[blue]"  id="samp_blue" value="0" min="-100" max="100" step="20"><br>
             <input type="range" name="samp[green]" id="samp_green" value="100" min="-100" max="100" step="20">
+          </td>
+          <td>
+            <input type="range" name="sing_shades" id="sing_shades" value="2" min="1" max="20" step="1" orient="vertical">
           </td>
         </tr>
       </table>
