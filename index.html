@@ -750,6 +750,17 @@
           </div>
         }
       }
+
+      class VerticalSlider extends Slider {
+        render() {
+          var props = this.props;
+          var value = this.state.value;
+          var min = props.min || -100;
+          var max = props.max || 100;
+          var step = props.step || 20;
+          return <input type="range" className="vertical" orient="vertical" name={props.name} id={props.id} min={min} max={max} step={step} value={value} onChange={this.handleChange}/>
+        }
+      }
       function RGB(props) {
         var name = props.name;
         return <div>
@@ -763,6 +774,7 @@
         <tr>
           <td><RGB name="sing"/></td>
           <td><RGB name="samp"/></td>
+          <td><VerticalSlider name="sing_shades" id="sing_shades" value="5" min="1" max="20" step="1"/></td>
         </tr>
       </tbody></table></div>
       , document.getElementById("root"));
@@ -1152,17 +1164,6 @@
           <canvas id="glcanvas" width="1224" height="612"></canvas>
         </div>
       </div>
-      <table align=center>
-        <tr>
-          <td>
-          </td>
-          <td>
-          </td>
-          <td>
-            <input type="range" name="sing_shades" id="sing_shades" class="vertical" value="5" min="1" max="20" step="1" orient="vertical">
-          </td>
-        </tr>
-      </table>
       <div id="root"></div>
     </body>
   </body>
