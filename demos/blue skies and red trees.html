@@ -597,7 +597,7 @@
 
     function makeTextures() {
       glTextures = [gl.TEXTURE0, gl.TEXTURE1, gl.TEXTURE2, gl.TEXTURE3, gl.TEXTURE4];
-      for(i = 0; i < images.length; i++) {
+      for(i = 0; i < glTextures.length; i++) {
         var texture = gl.createTexture();
         gl.activeTexture(glTextures[i]);
         gl.bindTexture(gl.TEXTURE_2D, texture);
