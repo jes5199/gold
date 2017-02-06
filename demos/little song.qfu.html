@@ -326,7 +326,7 @@
       filterNode.Q.value = 1.01;
 
       analyserNode = audioCtx.createAnalyser();
-      analyserNode.fftSize = fftSize;
+      try { analyserNode.fftSize = fftSize; } catch(e){}
       fftArray = new Uint8Array(analyserNode.frequencyBinCount);
 
       scriptNode.connect(filterNode);

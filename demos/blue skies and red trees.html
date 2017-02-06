@@ -374,7 +374,7 @@
       screechFilterNode.gain.value = -36.000;
 
       analyserNode = audioCtx.createAnalyser();
-      analyserNode.fftSize = fftSize;
+      try { analyserNode.fftSize = fftSize; } catch(e){}
       fftArray = new Uint8Array(analyserNode.frequencyBinCount);
 
       scriptNode.connect(screechFilterNode);
