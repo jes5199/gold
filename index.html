@@ -9,6 +9,7 @@
 
     var fftSize = Math.pow(2, 12);
     var spectrogram = false;
+    var oscilloscope = false;
 
     var approxCycleSeconds = 20.0;
     var frameCycle = Math.floor(44100 * approxCycleSeconds / 1024);
@@ -133,12 +134,12 @@
       //images[5].src = "images/lion.webp";
       //images[5].src = "images/AKWF_vgame_0070.wav.blob.png";
 
-      images[0].src = "images/AKWF_vgsin_0004.wav.blob.png";
-      images[1].src = "images/AKWF_vgsin_0004.wav.blob.png";
-      images[2].src = "images/AKWF_vgsin_0004.wav.blob.png";
-      images[3].src = "images/AKWF_vgsin_0004.wav.blob.png";
-      images[4].src = "images/AKWF_vgsin_0004.wav.blob.png";
-      images[5].src = "images/AKWF_vgsin_0004.wav.blob.png";
+      //images[0].src = "images/AKWF_vgsin_0004.wav.blob.png";
+      //images[1].src = "images/AKWF_vgsin_0004.wav.blob.png";
+      //images[2].src = "images/AKWF_vgsin_0004.wav.blob.png";
+      //images[3].src = "images/AKWF_vgsin_0004.wav.blob.png";
+      //images[4].src = "images/AKWF_vgsin_0004.wav.blob.png";
+      //images[5].src = "images/AKWF_vgsin_0004.wav.blob.png";
 
     var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     var scriptNode = audioCtx.createScriptProcessor(1024, 0, 1);
@@ -496,20 +497,37 @@
       gl.drawArrays(gl.TRIANGLES, 0, 6);
     }
 
+    function sval(name) {
+      return(document.getElementById(name).value / 100);
+    }
+
+    function setDisplayUniforms() {
+      gl.useProgram(display_program);
+      var matrix = [
+        sval(  "sing_red"), sval(  "samp_red"), 0.0, 0.0,
+        sval("sing_green"), sval("samp_green"), 0.0, 0.0,
+        sval( "sing_blue"), sval( "samp_blue"), 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0
+      ];
+      gl.uniformMatrix4fv(gl.getUniformLocation(display_program, "colorTransform"), false, matrix);
+    }
+
     function animate() {
+      setDisplayUniforms();
       setFramebuffer(null, main_width, main_height, 0, 100);
       gl.useProgram(display_program);
       gl.drawArrays(gl.TRIANGLES, 0, 6);
 
-      setFramebuffer(null, main_width, 100, 0, 0);
-      gl.useProgram(time_domain_display_program);
-      gl.drawArrays(gl.TRIANGLES, 0, 6);
-
-      analyserNode.getByteFrequencyData(fftArray);
-      gl.activeTexture(gl.TEXTURE8);
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.ALPHA, analyserNode.frequencyBinCount, 1, 0, gl.ALPHA, gl.UNSIGNED_BYTE, fftArray);
+      if( oscilloscope ) {
+        setFramebuffer(null, main_width, 100, 0, 0);
+        gl.useProgram(time_domain_display_program);
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+      }
 
       if( spectrogram ) {
+        analyserNode.getByteFrequencyData(fftArray);
+        gl.activeTexture(gl.TEXTURE8);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.ALPHA, analyserNode.frequencyBinCount, 1, 0, gl.ALPHA, gl.UNSIGNED_BYTE, fftArray);
         setFramebuffer(null, 50, main_height + 100, main_width, 0);
         gl.useProgram(freq_domain_display_program);
         gl.drawArrays(gl.TRIANGLES, 0, 6);
@@ -742,7 +760,7 @@
       float sing = 0.0;
       float samp = 0.0;
 
-      int shades = 2;//54;
+      int shades = 5;//54;
 
       float degrader = 0.0;
 
@@ -839,17 +857,19 @@
     varying vec2 position;
 
     uniform sampler2D image;
+
+    uniform mat4 colorTransform;
     void main() {
-      mat4 colorTransform = mat4(
-         0.0000,   1.0000,     0.0000,   0.0000,  // red
-         1.0000,   1.0000,     0.0000,   0.0000,  // green
-         1.0000,   0.0000,     0.0000,   0.0000,  // blue
+      mat4 colorTransform1 = mat4(
+         0.7000,   0.0000,     0.0000,   0.0000,  // red
+         0.3000,   0.5000,     0.0000,   0.0000,  // green
+         0.5000,   0.5000,     0.0000,   0.0000,  // blue
          0.0000,   0.0000,     0.0000,   0.0000   // alpha-unused
       //   sing,     samp,     0,        1
       );
 
       vec4 pattern = texture2D(image, position);
-      vec4 colors = (pattern - 0.5) * colorTransform * 2.0 + 0.5;
+      vec4 colors = (pattern - 0.5) * colorTransform + 0.5;
       gl_FragColor.rgba = vec4(colors.rgb, 1.0);
     }
     </script>
@@ -949,16 +969,35 @@
       }
       body {
         background: #808080;
-        width: 100%;
+        max-width: 100%;
         height: 100%;
+      }
+      #page {
+        height: 100%
       }
     </style>
   </head>
   <body>
     <body onload="start()" >
-      <div id="container">
-        <canvas id="glcanvas" width="1224" height="612"></canvas>
+      <div id=page>
+        <div id="container">
+          <canvas id="glcanvas" width="1224" height="612"></canvas>
+        </div>
       </div>
+      <table align=center>
+        <tr>
+          <td>
+            <input type="range" name="sing[red]"   id="sing_red" value="0" min="-100" max="100" step="20"><br>
+            <input type="range" name="sing[blue]"  id="sing_blue" value="100" min="-100" max="100" step="20"><br>
+            <input type="range" name="sing[green]" id="sing_green" value="100" min="-100" max="100" step="20">
+          </td>
+          <td>
+            <input type="range" name="samp[red]"   id="samp_red" value="100" min="-100" max="100" step="20"><br>
+            <input type="range" name="samp[blue]"  id="samp_blue" value="0" min="-100" max="100" step="20"><br>
+            <input type="range" name="samp[green]" id="samp_green" value="100" min="-100" max="100" step="20">
+          </td>
+        </tr>
+      </table>
     </body>
   </body>
 </html>
