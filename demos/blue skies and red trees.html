@@ -702,7 +702,7 @@
       source.buffer = buffer;
 
       // connect to output (your speakers)
-      source.connect(myContext.destination);
+      source.connect(audioCtx.destination);
 
       // play the file
       source.noteOn(0);
