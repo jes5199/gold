@@ -617,7 +617,6 @@
     function updateTextures() {
       for(i = 0; i < glTextures.length; i++) {
         gl.activeTexture(glTextures[i]);
-        console.log(i);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, images[i]);
       }
 
@@ -698,8 +697,8 @@
     window.addEventListener('touchstart', function() {
 
       // create empty buffer
-      var buffer = myContext.createBuffer(1, 1, 22050);
-      var source = myContext.createBufferSource();
+      var buffer = audioCtx.createBuffer(1, 1, 22050);
+      var source = audioCtx.createBufferSource();
       source.buffer = buffer;
 
       // connect to output (your speakers)
