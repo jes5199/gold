@@ -617,6 +617,7 @@
     function updateTextures() {
       for(i = 0; i < glTextures.length; i++) {
         gl.activeTexture(glTextures[i]);
+        console.log(i);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, images[i]);
       }
 
