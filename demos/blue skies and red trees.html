@@ -361,8 +361,6 @@
       imageLocation = gl.getUniformLocation(time_domain_output_program, "image");
       gl.uniform1i(imageLocation, 7);
 
-      fft_texture = makeFftTexture();
-
       var time_domain_display_fragment_shader = compile_fragment_shader("time-domain-display-fragment-shader");
       time_domain_display_program = build_program(vertex_shader, time_domain_display_fragment_shader);
       assign_positions(time_domain_display_program, "a_position", positions);
@@ -370,6 +368,7 @@
       imageLocation = gl.getUniformLocation(time_domain_display_program, "image");
       gl.uniform1i(imageLocation, 7);
 
+      fft_texture = makeFftTexture();
       var freq_domain_display_fragment_shader = compile_fragment_shader("freq-domain-display-fragment-shader");
       freq_domain_display_program = build_program(vertex_shader, freq_domain_display_fragment_shader);
       assign_positions(freq_domain_display_program, "a_position", positions);
