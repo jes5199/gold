@@ -3,7 +3,8 @@
     <meta charset="UTF-8" />
     <script src="/vendor/react.js"></script>
     <script src="/vendor/react-dom.js"></script>
-    <script src="/vendor/babel.min.js"></script>
+    <script src="/vendor/react-router.js"></script>
+    <script src="/vendor/babel.js"></script>
     <script>
     'use strict';
     var period = 1024 / 44100; // seconds
@@ -222,19 +223,13 @@
         pixels = new Uint8Array(buffer);
       }
 
-      //gl.readPixels(0, 0, width, height, gl.RGBA, gl.FLOAT, pixels); // fucking safari.
       setFramebuffer(time_domain_output_fbo, main_width, 1);
       gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
 
-      //console.log(pixels);
-      for(var n = 0; n < length; n+=1) {
-        channelData[n] = pcm[n];
-      }
+      channelData.set(pcm);
 
       frameCount += 1;
       frameCount %= frameCycle;
-      past_pitches = pitches.slice(0);
-      past_image_freqs = image_freqs.slice(0);
     }
 
     function compile_vertex_shader(id) {
@@ -518,7 +513,6 @@
       gl.viewport(offset_x, offset_y, width, height);
     }
 
-    var drawLongTimePart = 0;
     function drawMain() {
       gl.useProgram(main_program);
       setFramebuffer(main_fbo, main_width, main_height);
@@ -600,6 +594,9 @@
       var millis = now.getTime() - startMillis;
 
       var beats = Math.floor(millis / 1000.0 / 60 * bpm);
+
+      past_pitches = pitches.slice(0);
+      past_image_freqs = image_freqs.slice(0);
 
       for(var i = 0; i < patterns.length; i++) {
         var pattern = patterns[i];
@@ -728,6 +725,10 @@
     }
     </script>
     <script type="text/babel">
+      import { React } from 'react'
+      import { render } from 'react-dom'
+      import { Router, Route, Link, browserHistory } from 'react-router'
+
       class Slider extends React.Component {
         constructor(props) {
           super(props);
@@ -736,7 +737,11 @@
         }
 
         handleChange(event) {
-          this.setState({value: event.target.value});
+          var value = event.target.value
+          this.setState({value: value});
+
+          //this.transitionTo("/", {}, {"this": event.target.value});
+          window.history.pushState();
         }
 
         render() {
@@ -769,14 +774,21 @@
           <Slider name={name + "[blue]"} id={name + "_blue"}/>
         </div>
       }
+
+      function App(props) {
+        return <div className="center"><table><tbody>
+          <tr>
+            <td><RGB name="sing"/></td>
+            <td><RGB name="samp"/></td>
+            <td><VerticalSlider name="sing_shades" id="sing_shades" value="5" min="1" max="20" step="1"/></td>
+          </tr>
+        </tbody></table></div>
+      }
+
       ReactDOM.render(
-      <div className="center"><table><tbody>
-        <tr>
-          <td><RGB name="sing"/></td>
-          <td><RGB name="samp"/></td>
-          <td><VerticalSlider name="sing_shades" id="sing_shades" value="5" min="1" max="20" step="1"/></td>
-        </tr>
-      </tbody></table></div>
+      <Router history={browserHistory}>
+        <Route path="/" component={App}/>
+        </Router>
       , document.getElementById("root"));
       console.log("babeled");
     </script>
