@@ -14,17 +14,12 @@
     <script src="/takwin/js/float_pixelizer.js"></script>
     <script src="/takwin/js/audio_driver.js"></script>
     <script src="/takwin/js/animate_driver.js"></script>
+    <script src="/takwin/js/controller.js"></script>
     <script>
     'use strict';
 
     var canvas;
-    var receiver;
-    var audializer;
-    var viewer;
-    var oscilloscope;
-    var pixelizer;
-
-    var driver;
+    var controller;
 
     var urlParams = new URLSearchParams(window.location.search);
     var id = urlParams.get("id") || Math.floor(Math.random() * 10000);
@@ -36,14 +31,17 @@
       setupTakwin();
     }
 
-    function setupPrograms() {
+    function setupPrograms(id) {
+      let key = "takwin_data_" + id;
+      if(localStorage[key]) { return ; }
+
       var program1_src = `
         sine set_wave
         resonance now *
         10 *
         1.001 *
         wave
-        5 set_shades
+        2 set_shades
         vis
       `;
 
@@ -67,112 +65,27 @@
             size: 0.33,
             program: program1_src,
           },
-          {
-            channel: "w",
-            offset: 0.50,
-            size: 0.40,
-            program: program2_src,
-          },
         ],
+        tick_period: 1024,
         colors: [
           -1,0,0,0,
           0,0,0,1,
           0,1,1,0,
         ]
       }
-      localStorage.setItem("takwin_data_" + id, JSON.stringify(paintData, null, "  "));
+
+      localStorage.setItem(key, JSON.stringify(paintData, null, "  "));
     }
 
     function setupTakwin() {
-      setupPrograms();
+      setupPrograms(id);
 
       canvas = document.getElementById("glcanvas");
+      controller = new TakwinController(canvas, true);
 
-      receiver = new Receiver(id, canvas, "horizontal", 1024, 512, true);
-
-      audializer = new Audializer(receiver);
-      pixelizer = new FloatPixelizer(audializer);
-
-      viewer = new Viewer(receiver);
-
-      oscilloscope = new Oscilloscope(audializer, 100);
-      // TODO spectrogram
-
-      var approxPeriodSeconds = 20.0;
-      var tick_period = Math.floor(44100 * approxPeriodSeconds / 1024);
-
-      driver = new AnimateDriver(
-        renderData, renderGraphics, tick_period
-      );
-
-      driver = new AudioDriver(
-        renderData, renderGraphics, tick_period
-      )
-
-      connectAudio(
-        driver
-      );
-
-      initData(0, function() {
-        initGraphics(function() {
-          startDriver();
-        });
-      });
+      controller.connectAudio();
+      controller.run();
     }
-
-    // TODO: move these to controller
-
-    function initData(tick_count, f) {
-      receiver.whenReady(function() {
-        console.log("receiver ready");
-        receiver.paint(tick_count);
-        audializer.whenReady(function() {
-          console.log("audializer ready");
-          audializer.convert();
-          pixelizer.whenReady(function() {
-            console.log("pixelizer ready");
-            pixelizer.convert();
-            if(f) { f() };
-          });
-        });
-      });
-    }
-
-    function initGraphics(f) {
-      viewer.whenReady(function() {
-        console.log("viewer ready");
-        viewer.view();
-        oscilloscope.whenReady(function() {
-          console.log("oscilloscope ready");
-          oscilloscope.view();
-          if(f) { f() };
-        });
-      });
-    }
-
-    function renderData(tick_count) {
-      receiver.paint(tick_count);
-      audializer.convert();
-      pixelizer.convert();
-      return pixelizer.getData();
-    }
-
-    function renderGraphics() {
-      viewer.view();
-      oscilloscope.view();
-    }
-
-    function startDriver() {
-      driver.start();
-    }
-
-    function connectAudio(audioDriver) {
-      let ctx = audioDriver.audioCtx();
-      let scriptNode = audioDriver.audioNode();
-
-      scriptNode.connect(ctx.destination);
-    }
-
     </script>
 
     <style>
