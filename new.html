@@ -1,0 +1,202 @@
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <script src="/takwin/vendor/jquery-3.1.1.min.js"></script>
+    <script src="/takwin/js/util.js"></script>
+    <script src="/takwin/js/glprogrammer.js"></script>
+    <script src="/takwin/js/renderer.js"></script>
+    <script src="/takwin/js/jas_compiler.js"></script>
+    <script src="/takwin/js/painter.js"></script>
+    <script src="/takwin/js/receiver.js"></script>
+    <script src="/takwin/js/audializer.js"></script>
+    <script src="/takwin/js/viewer.js"></script>
+    <script src="/takwin/js/oscilloscope.js"></script>
+    <script src="/takwin/js/float_pixelizer.js"></script>
+    <script src="/takwin/js/audio_driver.js"></script>
+    <script src="/takwin/js/animate_driver.js"></script>
+    <script>
+    'use strict';
+
+    var canvas;
+    var receiver;
+    var audializer;
+    var viewer;
+    var oscilloscope;
+    var pixelizer;
+
+    var driver;
+
+    var urlParams = new URLSearchParams(window.location.search);
+    var id = urlParams.get("id") || Math.floor(Math.random() * 10000);
+    if(id != urlParams.get("id")) {
+      history.pushState({}, "", "?id=" + id);
+    }
+
+    function start() {
+      setupTakwin();
+    }
+
+    function setupPrograms() {
+      var program1_src = `
+        sine set_wave
+        resonance now *
+        10 *
+        1.001 *
+        wave
+        5 set_shades
+        vis
+      `;
+
+      var program2_src = `
+        sine set_wave
+        resonance now *
+        10 *
+        1.004 *
+        1.5 *
+        wave
+        1 set_shades
+        vis
+      `;
+
+      var paintData = {
+        sample_rate: 44100,
+        bands: [
+          {
+            channel: "x",
+            offset: 0.33,
+            size: 0.33,
+            program: program1_src,
+          },
+          {
+            channel: "w",
+            offset: 0.50,
+            size: 0.40,
+            program: program2_src,
+          },
+        ],
+        colors: [
+          -1,0,0,0,
+          0,0,0,1,
+          0,1,1,0,
+        ]
+      }
+      localStorage.setItem("takwin_data_" + id, JSON.stringify(paintData, null, "  "));
+    }
+
+    function setupTakwin() {
+      setupPrograms();
+
+      canvas = document.getElementById("glcanvas");
+
+      receiver = new Receiver(id, canvas, "horizontal", 1024, 512, true);
+
+      audializer = new Audializer(receiver);
+      pixelizer = new FloatPixelizer(audializer);
+
+      viewer = new Viewer(receiver);
+
+      oscilloscope = new Oscilloscope(audializer, 100);
+      // TODO spectrogram
+
+      var approxPeriodSeconds = 20.0;
+      var tick_period = Math.floor(44100 * approxPeriodSeconds / 1024);
+
+      driver = new AnimateDriver(
+        renderData, renderGraphics, tick_period
+      );
+
+      driver = new AudioDriver(
+        renderData, renderGraphics, tick_period
+      )
+
+      connectAudio(
+        driver
+      );
+
+      initData(0, function() {
+        initGraphics(function() {
+          startDriver();
+        });
+      });
+    }
+
+    // TODO: move these to controller
+
+    function initData(tick_count, f) {
+      receiver.whenReady(function() {
+        console.log("receiver ready");
+        receiver.paint(tick_count);
+        audializer.whenReady(function() {
+          console.log("audializer ready");
+          audializer.convert();
+          pixelizer.whenReady(function() {
+            console.log("pixelizer ready");
+            pixelizer.convert();
+            if(f) { f() };
+          });
+        });
+      });
+    }
+
+    function initGraphics(f) {
+      viewer.whenReady(function() {
+        console.log("viewer ready");
+        viewer.view();
+        oscilloscope.whenReady(function() {
+          console.log("oscilloscope ready");
+          oscilloscope.view();
+          if(f) { f() };
+        });
+      });
+    }
+
+    function renderData(tick_count) {
+      receiver.paint(tick_count);
+      audializer.convert();
+      pixelizer.convert();
+      return pixelizer.getData();
+    }
+
+    function renderGraphics() {
+      viewer.view();
+      oscilloscope.view();
+    }
+
+    function startDriver() {
+      driver.start();
+    }
+
+    function connectAudio(audioDriver) {
+      let ctx = audioDriver.audioCtx();
+      let scriptNode = audioDriver.audioNode();
+
+      scriptNode.connect(ctx.destination);
+    }
+
+    </script>
+
+    <style>
+      #container {
+        width: 1024px;
+        height: 512px;
+        position:absolute;
+        margin: auto;
+        top: 0; bottom: 0; left: 0; right: 0;
+      }
+      body {
+        background: #808080;
+        max-width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <body onload="start()" >
+      <div id=page>
+        <div id="container">
+          <canvas id="glcanvas" width="1224" height="612"></canvas>
+        </div>
+      </div>
+    </body>
+  </body>
+</html>
