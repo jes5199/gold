@@ -1,0 +1,377 @@
+<html>
+<script>
+  var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+  var sample_rate = audioCtx.sampleRate; // 44100 hz
+  var samples_per_frame = 1024 * 2;
+  var inputChannelCount = 1; var outputChannelCount = 1;
+
+  var width = 1024;
+  var height = 1024;
+
+  function begin() {
+    var canvas = document.getElementById("glcanvas");
+    var gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+
+    var vertex_shader = gl.createShader(gl.VERTEX_SHADER);
+    gl.shaderSource(vertex_shader, document.getElementById('vertex-shader').text);
+    gl.compileShader(vertex_shader);
+    var success = gl.getShaderParameter(vertex_shader, gl.COMPILE_STATUS);
+    if (!success) {
+      console.log(gl.getShaderInfoLog(vertex_shader));
+    }
+
+    var fragment_shader = gl.createShader(gl.FRAGMENT_SHADER);
+    gl.shaderSource(fragment_shader, document.getElementById('fragment-shader').text);
+    gl.compileShader(fragment_shader);
+    var success = gl.getShaderParameter(fragment_shader, gl.COMPILE_STATUS);
+    if (!success) {
+      console.log(gl.getShaderInfoLog(fragment_shader));
+    }
+
+    var program = gl.createProgram();
+    gl.attachShader(program, vertex_shader);
+    gl.attachShader(program, fragment_shader);
+    gl.linkProgram(program);
+    var success = gl.getProgramParameter(program, gl.LINK_STATUS);
+    if (!success) {
+      console.log(gl.getProgramInfoLog(program));
+    }
+
+    gl.useProgram(program);
+
+    var positions = [
+      0, 0, 1, 1, 0, 1,
+      0, 0, 1, 1, 1, 0,
+    ];
+    var positionAttribute = gl.getAttribLocation(program, "position");
+    var positionBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(positionAttribute);
+    gl.vertexAttribPointer(positionAttribute, 2, gl.FLOAT, false, 0, 0);
+
+    gl.uniform2f(
+      gl.getUniformLocation(program, "resolution"),
+      width, height
+    );
+
+    gl.uniform1i(
+      gl.getUniformLocation(program, "samples_per_frame"),
+      samples_per_frame
+    );
+
+    gl.uniform1i(
+      gl.getUniformLocation(program, "sample_rate"),
+      sample_rate
+    );
+
+    gl.viewport(0, 0, width, height);
+
+    var frame_count = -1;
+
+    var scriptNode = audioCtx.createScriptProcessor(
+      samples_per_frame, inputChannelCount, outputChannelCount
+    );
+    scriptNode.connect(audioCtx.destination);
+
+    var radiuses = [32, 48, 64, 96, 128, 192, 256];
+
+    radiuses = [];
+    var smallest = 6;
+    for(i = 0; i < 15; i+=1) {
+      var r = smallest * Math.pow(3/2, i);
+      if(r < Math.min(width, height)/2) {
+        radiuses.push(r);
+      }
+      r = radiuses[radiuses.length-1] * 5/4;
+      if(r < Math.min(width, height)/2) {
+        //radiuses.push(r);
+      }
+    }
+    console.log(radiuses);
+
+    var socket = new WebSocket("ws://localhost:4567");
+    var queue = [];
+
+    var sendQueue = function() {
+      for(var q = 0; q < 100; q++) {
+        if(queue.length) {
+          var m = queue.shift();
+          socket.send(m);
+        }
+      }
+      setTimeout(sendQueue, 1);
+    }
+
+    socket.onopen = function (event) {
+      socket.send("PCM");
+      setTimeout(sendQueue, 1);
+    };
+    socket.onmessage = function (event) {
+      console.log(event.data);
+    }
+
+    var process;
+
+    var channelData = new Float32Array(samples_per_frame);
+    var driver = function() {
+      if(process){
+        for(var q = 0; q < 20; q++) {
+          process(channelData);
+        }
+      }
+      setTimeout(driver, 1);
+    }
+
+    driver();
+
+    // scriptNode.onaudioprocess
+    process = function (channelData) {
+      frame_count += 1;
+
+      gl.uniform1i(
+        gl.getUniformLocation(program, "frame_count"),
+        frame_count
+      );
+
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+      var pixels = new Uint8Array(width * height * 4);
+      gl.readPixels(
+        0, 0, width, height,
+        gl.RGBA, gl.UNSIGNED_BYTE,
+        pixels
+      );
+
+      var rpm = 3;
+      var parts = (60 / rpm) * sample_rate / samples_per_frame;
+      parts = 512;
+      var part = frame_count % parts;
+
+      var circumference = samples_per_frame;
+      //var radius = circumference / (2 * Math.PI);
+
+      for(i = 0; i < samples_per_frame; i+=1) {
+        var sum = 0;
+        var Red = 0;
+        var Green = 1;
+        var Blue = 2;
+
+        radiuses.forEach(function(radius) {
+          radius -= 5;
+          var x;
+          var y;
+
+          var scale = samples_per_frame;
+
+          var subsamples = 4;
+          for(sub = 0; sub < subsamples; sub++) {
+            var θ = (i+(sub/subsamples)) * 2*Math.PI/(samples_per_frame);
+            var deg = θ * 180 / Math.PI;
+
+            var n = (i + scale*part + sub/subsamples)/(samples_per_frame/scale);
+
+            // circle
+          //x = Math.floor( radius *  Math.cos( θ )) + 512;
+          //y = Math.floor( radius * -Math.sin( θ )) + 512;
+
+            // diamonds
+            x = Math.floor( (width/2) + Math.abs((n % radius*4) - radius*2) - radius ) ;
+            y = Math.floor( (height/2) + Math.abs(((n + radius/4) % radius*4) - radius*2) - radius );
+
+            //if(i == Math.floor(Math.random() * 10)){
+            //  document.getElementById("pointer").style.left = x + "px";
+            //  document.getElementById("pointer").style.top = y + "px";
+            //}
+
+            var val = 0;
+            val += pixels[((y * width) + x) * 4 + Red];
+            val -= pixels[((y * width) + x) * 4 + Blue];
+            //val = val * radius / 512;
+            sum += val/subsamples;
+          }
+        });
+        var intensity = sum / 255; // -1..1
+        var audio_sample = intensity;
+        channelData[i] = audio_sample / 20;
+      }
+      queue.push(new Float32Array(channelData));
+    }
+  }
+</script>
+<script id="vertex-shader" type="x-shader/x-vertex">
+  precision highp float;
+  attribute vec4 position;
+  uniform vec2 resolution;
+
+  varying vec2 coordinates;
+
+  void main() {
+    coordinates = position.xy * resolution;
+    gl_Position = 2.0 * position - 1.0;
+  }
+</script>
+<script id="fragment-shader" type="x-shader/x-fragment">
+  precision highp float;
+  varying vec2 coordinates;
+  uniform vec2 resolution;
+
+  uniform int samples_per_frame;
+  uniform int sample_rate;
+
+  uniform int frame_count;
+
+  void mainImage( out vec4 fragColor, in vec2 fragCoord, in vec2 iResolution, in float iGlobalTime)
+  {
+      float pi = acos(-1.);
+      float t = iGlobalTime;
+      float value = 0.;
+      float siner = 1.;
+
+      float skip_ahead_seconds = 5.2;
+      vec2 uv = ((skip_ahead_seconds + iGlobalTime * 0.25) / 1.0) * ((fragCoord.xy - (iResolution.xy / 2.0)) / iResolution.y);
+
+      //uv = floor(uv * 2.);
+
+      //uv = sin(uv*pi*10.);
+
+      //siner *= iGlobalTime * 0.05;
+
+      // circles:
+      //value += (uv.x*uv.x + uv.y*uv.y);
+
+      // sparks:
+      //value += (2.*(uv.x * uv.y));
+
+      // curves:
+      //value = (uv.x*uv.x - uv.y*uv.y);
+
+      // portal:
+      value += (uv.x * sign(uv.y * siner) + uv.y * sign(uv.x * siner)) * sin(uv.x) * sin(uv.y);
+
+      value = sin(value * siner);
+
+      float color = value * 9.0;
+
+      color = color * sign(uv.x) * sign(uv.y); // revision 2
+
+      float low = abs(color);
+      float med = abs(color) - 7.0;
+      float high = abs(color) - 8.0;
+      if(color > 0.0) {
+        fragColor = vec4(high, high / 4., 0,1.0);
+      } else {
+        fragColor = vec4(0, high / 2., high,1.0);
+      }
+  }
+
+  void main() {
+    vec4 color;
+
+    float t = (float(frame_count * samples_per_frame)) / float(sample_rate);
+
+    mainImage(color, coordinates, resolution, t);
+    gl_FragColor.rgba = color;
+  }
+</script>
+<style>
+  #container {
+    position:absolute;
+    margin: auto;
+    top: 0; bottom: 0; left: 0; right: 0;
+  }
+  body {
+    width: 100%;
+    height: 100%;
+    text-align:center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #circle32 {
+    position:absolute;
+    width: 64px;
+    height: 64px;
+    border: 1px solid gold;
+    border-radius: 50%;
+    display: inline-block;
+  }
+  #circle64 {
+    position:absolute;
+    width: 128px;
+    height: 128px;
+    border: 1px solid gold;
+    border-radius: 50%;
+    display: inline-block;
+  }
+  #circle128 {
+    position:absolute;
+    width: 256px;
+    height: 256px;
+    border: 1px solid gold;
+    border-radius: 50%;
+    display: inline-block;
+  }
+  #circle256 {
+    position:absolute;
+    width: 512px;
+    height: 512px;
+    border: 1px solid gold;
+    border-radius: 50%;
+    display: inline-block;
+  }
+  #circle511 {
+    position:absolute;
+    width: 1022px;
+    height: 1022px;
+    border: 1px solid gold;
+    border-radius: 50%;
+    display: inline-block;
+  }
+  #pointer {
+    position:absolute;
+    width: 5px;
+    height: 5px;
+    border: 4px solid gold;
+    display: inline-block;
+    z-index:2;
+  }
+  #marker {
+    position:absolute;
+    width: 100px;
+    height: 100px;
+    border: 1px solid gold;
+    display: inline-block;
+    display: none;
+  }
+  #marker2 {
+    position:absolute;
+    width: 100px;
+    height: 100px;
+    border: 1px solid gold;
+    display: inline-block;
+    display: none;
+  }
+</style>
+<body onload="begin()" style="margin: 0px; padding: 0px; background: black">
+<!--
+    <div id="circle32"></div>
+    <div id="circle64"></div>
+    <div id="circle128"></div>
+    <div id="circle256"></div>
+    <div id="circle511"></div>
+    <div id="circle511"></div>
+    <div id="marker"></div>
+    <div id="marker2"></div>
+    -->
+  <div class="container">
+    <div style="height:1024;width:1024;border:0px solid green;display:inline-block">
+      <div style="position:relative;z-index:1">
+        <!--<span id="pointer"></span>-->
+        <canvas id="glcanvas" width="1024" height="1024" style="border:0px; margin: 0px; padding: 0px"></canvas>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
