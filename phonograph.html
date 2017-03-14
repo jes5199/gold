@@ -80,9 +80,12 @@
     radiuses = [];
     var smallest = 6;
     for(i = 0; i < 15; i+=1) {
-      //radiuses.push(smallest * Math.pow(Math.pow(2,1/12), i * 7));
       var r = smallest * Math.pow(3/2, i);
-      if(r < width/2) {
+      if(r < Math.min(width, height)/2) {
+        radiuses.push(r);
+      }
+      var r = smallest * Math.pow(5/4, i);
+      if(r < Math.min(width, height)/2) {
         radiuses.push(r);
       }
     }
@@ -117,23 +120,29 @@
 
       for(i = 0; i < samples_per_frame; i+=1) {
         var sum = 0;
-        var θ = (part * samples_per_frame + i) * 2*Math.PI/(samples_per_frame*parts);
-        var deg = θ * 180 / Math.PI;
-
         var Red = 0;
         var Green = 1;
         var Blue = 2;
 
         radiuses.forEach(function(radius) {
           radius -= 5;
-          var x = Math.floor( radius *  Math.cos( θ )) + 512;
-          var y = Math.floor( radius * -Math.sin( θ )) + 512;
+          var x;
+          var y;
 
           var scale = samples_per_frame;
 
-          var subsamples = 20;
+          var subsamples = 4;
           for(sub = 0; sub < subsamples; sub++) {
-            var n = (i + scale*part + sub/subsamples)/(samples_per_frame/scale); //θ * radius * 2 / Math.PI;
+            var θ = (i+(sub/subsamples)) * 2*Math.PI/(samples_per_frame);
+            var deg = θ * 180 / Math.PI;
+
+            var n = (i + scale*part + sub/subsamples)/(samples_per_frame/scale);
+
+            // circle
+          //x = Math.floor( radius *  Math.cos( θ )) + 512;
+          //y = Math.floor( radius * -Math.sin( θ )) + 512;
+
+            // diamonds
             x = Math.floor( (width/2) + Math.abs((n % radius*4) - radius*2) - radius ) ;
             y = Math.floor( (height/2) + Math.abs(((n + radius/4) % radius*4) - radius*2) - radius );
 
@@ -180,21 +189,45 @@
 
   void mainImage( out vec4 fragColor, in vec2 fragCoord, in vec2 iResolution, in float iGlobalTime)
   {
-      float skip_ahead_seconds = 80.;
-      vec2 uv = ((skip_ahead_seconds + iGlobalTime / 2.5) / 1.0) * ((fragCoord.xy - (iResolution.xy / 2.0)) / iResolution.y);
+      float pi = acos(-1.);
+      float t = iGlobalTime;
+      float value = 0.;
+      float siner = 1.;
+
+      float skip_ahead_seconds = 10.;
+      vec2 uv = ((skip_ahead_seconds + iGlobalTime * 0.1) / 1.0) * ((fragCoord.xy - (iResolution.xy / 2.0)) / iResolution.y);
 
       //uv = floor(uv * 2.);
-      float value = (uv.x * sign(uv.y) + uv.y * sign(uv.x)) * sin(uv.x) * sin(uv.y);
-      float color = sin(value) * 3.0;
+
+      //uv = sin(uv*pi*10.);
+
+      siner *= iGlobalTime * 0.05;
+
+      // circles:
+      //value += (uv.x*uv.x + uv.y*uv.y);
+
+      // sparks:
+      //value += 2.*(uv.x * uv.y);
+
+      // curves:
+      //value += (uv.x*uv.x - uv.y*uv.y);
+
+      // portal:
+      value += (uv.x * sign(uv.y * siner) + uv.y * sign(uv.x * siner)) * sin(uv.x) * sin(uv.y);
+
+      value = sin(value * siner);
+
+      float color = value * 3.0;
+
       //color = color * sign(uv.x) * sign(uv.y); // revision 2
 
       float low = abs(color);
       float med = abs(color) - 1.0;
       float high = abs(color) - 2.0;
       if(color > 0.0) {
-        fragColor = vec4(high, 0, 0,1.0);
+        fragColor = vec4(high, high / 4., 0,1.0);
       } else {
-        fragColor = vec4(0, 0, high,1.0);
+        fragColor = vec4(0, high / 2., high,1.0);
       }
   }
 
@@ -286,7 +319,7 @@
     display: none;
   }
 </style>
-<body onload="begin()" style="margin: 0px; padding: 0px;">
+<body onload="begin()" style="margin: 0px; padding: 0px; background: black">
 <!--
     <div id="circle32"></div>
     <div id="circle64"></div>
