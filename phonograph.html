@@ -84,13 +84,31 @@
       if(r < Math.min(width, height)/2) {
         radiuses.push(r);
       }
-      var r = smallest * Math.pow(5/4, i);
+      r = radiuses[radiuses.length-1] * 5/4;
       if(r < Math.min(width, height)/2) {
-        radiuses.push(r);
+        //radiuses.push(r);
       }
     }
     console.log(radiuses);
 
+    var socket = new WebSocket("ws://localhost:4567");
+    var queue = [];
+
+    var sendQueue = function() {
+      if(queue.length) {
+        var m = queue.shift();
+        socket.send(m);
+      }
+      setTimeout(sendQueue, 1);
+    }
+
+    socket.onopen = function (event) {
+      socket.send("PCM");
+      setTimeout(sendQueue, 1);
+    };
+    socket.onmessage = function (event) {
+      console.log(event.data);
+    }
 
     scriptNode.onaudioprocess = function (event) {
       frame_count += 1;
@@ -161,7 +179,9 @@
         var intensity = sum / 255; // -1..1
         var audio_sample = intensity;
         channelData[i] = audio_sample / 20;
+
       }
+      queue.push(new Float32Array(channelData));
     }
   }
 </script>
@@ -194,36 +214,36 @@
       float value = 0.;
       float siner = 1.;
 
-      float skip_ahead_seconds = 10.;
-      vec2 uv = ((skip_ahead_seconds + iGlobalTime * 0.1) / 1.0) * ((fragCoord.xy - (iResolution.xy / 2.0)) / iResolution.y);
+      float skip_ahead_seconds = 2.;
+      vec2 uv = ((skip_ahead_seconds + iGlobalTime * 0.25) / 1.0) * ((fragCoord.xy - (iResolution.xy / 2.0)) / iResolution.y);
 
       //uv = floor(uv * 2.);
 
       //uv = sin(uv*pi*10.);
 
-      siner *= iGlobalTime * 0.05;
+      //siner *= iGlobalTime * 0.05;
 
       // circles:
       //value += (uv.x*uv.x + uv.y*uv.y);
 
       // sparks:
-      //value += 2.*(uv.x * uv.y);
+      //value += (2.*(uv.x * uv.y));
 
       // curves:
-      //value += (uv.x*uv.x - uv.y*uv.y);
+      //value = (uv.x*uv.x - uv.y*uv.y);
 
       // portal:
       value += (uv.x * sign(uv.y * siner) + uv.y * sign(uv.x * siner)) * sin(uv.x) * sin(uv.y);
 
       value = sin(value * siner);
 
-      float color = value * 3.0;
+      float color = value * 9.0;
 
-      //color = color * sign(uv.x) * sign(uv.y); // revision 2
+      color = color * sign(uv.x) * sign(uv.y); // revision 2
 
       float low = abs(color);
-      float med = abs(color) - 1.0;
-      float high = abs(color) - 2.0;
+      float med = abs(color) - 7.0;
+      float high = abs(color) - 8.0;
       if(color > 0.0) {
         fragColor = vec4(high, high / 4., 0,1.0);
       } else {
