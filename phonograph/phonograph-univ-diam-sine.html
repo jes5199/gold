@@ -1,0 +1,357 @@
+<html>
+<script>
+  var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+  var sample_rate = audioCtx.sampleRate; // 44100 hz
+  var samples_per_frame = 1024 * 2;
+  var inputChannelCount = 2; var outputChannelCount = 2;
+
+  var width = 1024;
+  var height = 1024;
+
+  function begin() {
+    var canvas = document.getElementById("glcanvas");
+    var gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+
+    var vertex_shader = gl.createShader(gl.VERTEX_SHADER);
+    gl.shaderSource(vertex_shader, document.getElementById('vertex-shader').text);
+    gl.compileShader(vertex_shader);
+    var success = gl.getShaderParameter(vertex_shader, gl.COMPILE_STATUS);
+    if (!success) {
+      console.log(gl.getShaderInfoLog(vertex_shader));
+    }
+
+    var fragment_shader = gl.createShader(gl.FRAGMENT_SHADER);
+    gl.shaderSource(fragment_shader, document.getElementById('fragment-shader').text);
+    gl.compileShader(fragment_shader);
+    var success = gl.getShaderParameter(fragment_shader, gl.COMPILE_STATUS);
+    if (!success) {
+      console.log(gl.getShaderInfoLog(fragment_shader));
+    }
+
+    var program = gl.createProgram();
+    gl.attachShader(program, vertex_shader);
+    gl.attachShader(program, fragment_shader);
+    gl.linkProgram(program);
+    var success = gl.getProgramParameter(program, gl.LINK_STATUS);
+    if (!success) {
+      console.log(gl.getProgramInfoLog(program));
+    }
+
+    gl.useProgram(program);
+
+    var positions = [
+      0, 0, 1, 1, 0, 1,
+      0, 0, 1, 1, 1, 0,
+    ];
+    var positionAttribute = gl.getAttribLocation(program, "position");
+    var positionBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(positionAttribute);
+    gl.vertexAttribPointer(positionAttribute, 2, gl.FLOAT, false, 0, 0);
+
+    gl.uniform2f(
+      gl.getUniformLocation(program, "resolution"),
+      width, height
+    );
+
+    gl.uniform1i(
+      gl.getUniformLocation(program, "samples_per_frame"),
+      samples_per_frame
+    );
+
+    gl.uniform1i(
+      gl.getUniformLocation(program, "sample_rate"),
+      sample_rate
+    );
+
+    gl.viewport(0, 0, width, height);
+
+    var frame_count = -1;
+
+    var scriptNode = audioCtx.createScriptProcessor(
+      samples_per_frame, inputChannelCount, outputChannelCount
+    );
+    scriptNode.connect(audioCtx.destination);
+
+    var radiuses = [32, 48, 64, 96, 128, 192, 256];
+
+    radiuses = [32, 64, 90, 128, 181, 256, 362, 512];
+    radiuses = [128, 181, 256, 362, 512];
+    radiuses = [32, 64, 90, 181, 256, 362, 512];
+
+    console.log(radiuses);
+
+    radiuses.forEach(function(radius){
+      var circle = document.createElement("div");
+      circle.style.position = "absolute";
+      circle.style.width = radius * 2 + "px";
+      circle.style.height = radius * 2 + "px";
+      circle.style.border = "1px solid gold";
+      circle.style.borderRadius = "50%";
+      circle.style.pointerEvents = "none";
+      circle.style.zIndex = 10;
+
+      document.body.insertBefore(circle, document.body.childNodes[0]);
+    });
+
+    var socket = new WebSocket("ws://localhost:4567");
+    var queue = [];
+
+    var sendQueue = function() {
+      if(queue.length) {
+        var m = queue.shift();
+        socket.send(m);
+      }
+      setTimeout(sendQueue, 1000 / 60);
+    }
+
+    socket.onopen = function (event) {
+      socket.send("PCM");
+      setTimeout(sendQueue, 1);
+    };
+    socket.onmessage = function (event) {
+      console.log(event.data);
+    }
+
+    var paused = false;
+    canvas.onclick = function() {
+      paused = !paused;
+    }
+
+    var stereoData = new Float32Array(samples_per_frame * 2);
+
+    scriptNode.onaudioprocess = function (event) {
+      var channelData = event.outputBuffer.getChannelData(0);
+      var channelDataB = event.outputBuffer.getChannelData(1);
+
+      if(paused) {
+        for(i = 0; i < samples_per_frame; i+=1) {
+          channelData[i] = channelDataB[i] = 0;
+        }
+        return;
+      }
+
+      if(frame_count > 25840) {
+        paused = true;
+        return;
+      }
+
+
+      frame_count += 1;
+
+      gl.uniform1i(
+        gl.getUniformLocation(program, "frame_count"),
+        frame_count
+      );
+
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+      var pixels = new Uint8Array(width * height * 4);
+      gl.readPixels(
+        0, 0, width, height,
+        gl.RGBA, gl.UNSIGNED_BYTE,
+        pixels
+      );
+
+      var rpm = 3;
+      var parts = (60 / rpm) * sample_rate / samples_per_frame;
+      parts = 512;
+      var part = frame_count % parts;
+
+      var circumference = samples_per_frame;
+      //var radius = circumference / (2 * Math.PI);
+
+      for(i = 0; i < samples_per_frame; i+=1) {
+        var sum = 0;
+        var sumB = 0;
+        var Red = 0;
+        var Green = 1;
+        var Blue = 2;
+
+        radiuses.forEach(function(radius) {
+          radius -= 5;
+          var x;
+          var y;
+
+          var scale = samples_per_frame;
+
+          var subsamples = 1;
+          for(sub = 0; sub < subsamples; sub++) {
+          var d = 1/2;
+          d = 1/6;
+            var θ = (i + samples_per_frame*part+(sub/subsamples)) * 2*Math.PI/(samples_per_frame * d);
+            var deg = θ * 180 / Math.PI;
+
+            document.getElementById("marker").style.transform = "rotate("+deg+"deg)";
+
+            var n = (i + samples_per_frame*part + sub/subsamples)/(samples_per_frame/scale);
+
+            // circle
+            x = Math.floor( radius *  Math.cos( θ )) + (width/2);
+            y = Math.floor( radius * -Math.sin( θ )) + (height/2);
+
+            // diamonds
+          //var d = 4.0000;
+          //x = Math.floor( (width/2) + Math.abs(((n/d) % radius*4) - radius*2) - radius ) ;
+          //y = Math.floor( (height/2) + Math.abs((((n/d) + radius/4) % radius*4) - radius*2) - radius );
+
+            //if(i == Math.floor(Math.random() * 10)){
+            //  document.getElementById("pointer").style.left = x + "px";
+            //  document.getElementById("pointer").style.top = y + "px";
+            //}
+
+            var val = 0;
+            var valB = 0;
+
+            val += pixels[((y * width) + x) * 4 + Red];
+            val += pixels[((y * width) + x) * 4 + Green] * 0.5;
+
+            valB += pixels[((y * width) + x) * 4 + Blue];
+            valB += pixels[((y * width) + x) * 4 + Green] * 0.5;
+
+            sum += val/subsamples;
+            sumB += valB/subsamples;
+          }
+        });
+        var intensity = sum / 255; // 0..1
+        var audio_sample = intensity * 2 - 1; // -1..1
+        channelData[i] = audio_sample / 20;
+
+        var intensityB = sumB / 255; // 0..1
+        var audio_sampleB = intensityB * 2 - 1; // -1..1
+        channelDataB[i] = audio_sampleB / 20;
+
+        stereoData[i*2] = channelData[i];
+        stereoData[i*2 + 1] = channelDataB[i];
+      }
+      queue.push(new Float32Array(stereoData));
+    }
+  }
+</script>
+<script id="vertex-shader" type="x-shader/x-vertex">
+  precision highp float;
+  attribute vec4 position;
+  uniform vec2 resolution;
+
+  varying vec2 coordinates;
+
+  void main() {
+    coordinates = position.xy * resolution;
+    gl_Position = 2.0 * position - 1.0;
+  }
+</script>
+<script id="fragment-shader" type="x-shader/x-fragment">
+  precision highp float;
+  varying vec2 coordinates;
+  uniform vec2 resolution;
+
+  uniform int samples_per_frame;
+  uniform int sample_rate;
+
+  uniform int frame_count;
+
+  float signpower(float n, float p){
+      return sign(n) * abs(pow(n,p));
+  }
+
+  void mainImage( out vec4 fragColor, in vec2 fragCoord, in vec2 iResolution, in float iGlobalTime)
+  {
+    vec2 uv = (fragCoord.xy - (iResolution.xy / 2.0));
+
+    float pi = acos(-1.);
+    float period = 1024. / pi / 2.;
+    float x = sin(uv.x / period) * period;
+    float y = sin(uv.y / period) * period;
+    //float t = .0000 + iGlobalTime / 100.;
+    float t = sin(iGlobalTime / 1200. * pi * 2.) * 1200. / 4000.;
+
+    float power = 1.;
+    float red   = signpower(sin(( x*x+y*y)*t),power) * 1.;
+    float green = signpower(sin((2.*x*y ) *t),power) * 1.0;
+    float blue  = signpower(sin(( x*x-y*y)*t),power) * 1.;
+
+    vec3 r;
+    float mute = 0.0;
+    if(red > 0.) {
+       r = vec3(red, 0, 0);
+    } else {
+       r = vec3(-red, 0, 0) * mute;
+    }
+    vec3 g;
+    if(green > 0.) {
+       g = vec3(0, green, 0);
+    } else {
+       g = vec3(0, -green, 0) * mute;
+    }
+
+    vec3 b;
+    if(blue > 0.) {
+       b = vec3(0, 0, blue);
+    } else {
+       b = vec3(0, 0, -blue) * mute;
+    }
+
+    vec3 color = max(max(r,g),b);
+
+    fragColor = vec4(color, 1.);
+  }
+
+  void main() {
+    vec4 color;
+
+    float t = (float(frame_count * samples_per_frame)) / float(sample_rate);
+
+    mainImage(color, coordinates, resolution, t);
+    gl_FragColor.rgba = color;
+  }
+</script>
+<style>
+  #container {
+    position:absolute;
+    margin: auto;
+    top: 0; bottom: 0; left: 0; right: 0;
+  }
+  body {
+    width: 100%;
+    height: 100%;
+    text-align:center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #pointer {
+    position:absolute;
+    width: 5px;
+    height: 5px;
+    border: 4px solid gold;
+    display: inline-block;
+    z-index:2;
+  }
+  #marker {
+    position:absolute;
+    width: 100px;
+    height: 100px;
+    border: 1px solid gold;
+    display: inline-block;
+    z-index:14;
+    text-align:left;
+    color: gold;
+  }
+</style>
+<body onload="begin()" style="margin: 0px; padding: 0px; background: black">
+<!--
+    <div id="circle32"></div>
+    -->
+  <div id="marker">x</div>
+  <div class="container">
+    <div style="height:1024;width:1024;border:0px solid green;display:inline-block">
+      <div style="position:relative;z-index:2">
+        <!--<span id="pointer"></span>-->
+        <canvas id="glcanvas" width="1024" height="1024" style="border:0px; margin: 0px; padding: 0px"></canvas>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
