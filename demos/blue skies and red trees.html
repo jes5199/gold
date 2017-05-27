@@ -103,9 +103,10 @@
 
     var bpm = 80;
 
-    var buffer;
-    var pixels;
-    var pcm;
+    var buffer = new ArrayBuffer(main_width * 1 * 4);
+    var pcm = new Float32Array(buffer);
+    var pixels = new Uint8Array(buffer);
+
     var pitches = [0., 0., 0., 0.0, 0, 0, 0, 0,
                    0, 0, 0, 0, 0, 0, 0, 0,
                    0, 0, 0, 0, 0, 0, 0, 0,
@@ -205,19 +206,7 @@
 
       //console.log(frameCount + " " + seconds);
       setUniforms(seconds, frameCount);
-      drawMain();
-
-      var height = 1;
-      var width = main_width;
-      if(!buffer) {
-        buffer = new ArrayBuffer(width * height * 4);
-        pcm = new Float32Array(buffer);
-        pixels = new Uint8Array(buffer);
-      }
-
-      //gl.readPixels(0, 0, width, height, gl.RGBA, gl.FLOAT, pixels); // fucking safari.
-      setFramebuffer(time_domain_output_fbo, main_width, 1);
-      gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+      //drawMain();
 
       //console.log(pixels);
       for(n = 0; n < length; n+=1) {
@@ -283,6 +272,16 @@
           images[i].onload = updateTextures;
         }
       }
+    }
+
+    function readPcmFromPixels() {
+      var height = 1;
+      var width = main_width;
+
+    //setFramebuffer(time_domain_fbo, main_width, 1);
+    //gl.readPixels(0, 0, 256, 1, gl.ALPHA, gl.FLOAT, pcm); // fucking safari.
+      setFramebuffer(time_domain_output_fbo, main_width, 1);
+      gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
     }
 
     function start() {
@@ -467,7 +466,7 @@
       gl.drawArrays(gl.TRIANGLES, 0, 6);
     }
 
-    function animate() {
+    function drawVisible() {
       setFramebuffer(null, main_width, main_height, 0, 100);
       gl.useProgram(display_program);
       gl.drawArrays(gl.TRIANGLES, 0, 6);
@@ -483,7 +482,13 @@
       setFramebuffer(null, 50, main_height + 100, main_width, 0);
       gl.useProgram(freq_domain_display_program);
       gl.drawArrays(gl.TRIANGLES, 0, 6);
+    }
 
+    function animate() {
+      drawMain();
+      drawVisible();
+
+      readPcmFromPixels();
       requestAnimationFrame(animate);
     }
 
