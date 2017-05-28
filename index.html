@@ -3,159 +3,9 @@
     <meta charset="UTF-8" />
     <script>
     'use strict';
-    var period = 1024 / 44100; // seconds
-    var resonance = 44100 / 1024; // hz
-
-    var main_width = 1024;
-    var main_height = 512;
-
-    var fftSize = Math.pow(2, 12);
-    var spectrogram = false;
-    var oscilloscope = false;
-
-    var approxCycleSeconds = 20.0;
-    var frameCycle = Math.floor(44100 * approxCycleSeconds / 1024);
-    var lockCycle = frameCycle * 1024 / 44100;
-    var lockFreq = 1 / lockCycle;
-
-    var e1 = 41.20;
-    var f1 = 43.65;
-    var freq = resonance;
-    var base = freq * 5.0 * 1.004;
-    //base = 440;
-    //base = 220;
-    //base = 260.74 * 2;
-    console.log(base + " hz base tone");
-    //base = 29.97;
-    var ntv = [0, base, base * 9/8, base * 81/64, base * 4/3, base * 3/2, base * 27/16, base * 243/128, base * 2]
-    console.log(lockCycle + " seconds shared resonance");
-    console.log(ntv);
-
-    function safeFreq(f) {
-      return Math.floor(f / lockFreq) * lockFreq;
-    }
-
-    function midi2freq(note) {
-      return safeFreq( Math.pow(2,(note - 69) / 12) * base);
-    }
-
-    var p = base;
-    var alpha = [];
-    for(var x = 0; x < 35; x++) {
-      var cents_ratio = 78;
-      alpha.push(p);
-      p = p * Math.pow(2, cents_ratio / 1200);
-    }
-
-    for(var x = 0; x < ntv.length; x++){
-      var newval = safeFreq(ntv[x]);
-      var ratio = (ntv[x] / newval);
-      var cents = (Math.log(ratio) / Math.log(2)) * 1200;
-      console.log(cents);
-      ntv[x] = newval;
-    }
-    //console.log(ntv);
-
-    var twelveToneToString = {
-      // white keys only
-      0: 0,
-      2: 1,
-      4: 2,
-      5: 3,
-      7: 4,
-      9: 5,
-      11: 6,
-    };
-
-    var twelveToneToImage = {
-      // black keys only
-      1: 0,
-      3: 1,
-      6: 2,
-      8: 3,
-      10: 4,
-    };
-
-    var string_count = 4;
-    var image_count = 5;
-
-    var scale = alpha;
-
-    var patterns = [
-      [base],
-      [scale[4]],
-      [scale[5]],
-      [scale[3], scale[2], scale[4], scale[5], scale[9], scale[5]],
-      [scale[8], scale[9], scale[10], scale[11]],
-      [0],
-      [0],
-    ];
-    var samplePatterns = [
-      [base],
-      [scale[3], scale[2], scale[4], scale[7], scale[9]],
-      [base, scale[8], scale[9], scale[10], scale[11], scale[14], scale[13], scale[12], scale[9], scale[3]],
-      [scale[3], scale[2], scale[4], scale[6]],
-      [base, scale[8], scale[9], scale[10], scale[11], scale[14], scale[13], scale[12]],
-    ];
-
-    var bpm = 80;
-
-    var buffer;
-    var pixels;
-    var pcm;
-    var pitches = [0., 0., 0., 0.0, 0, 0, 0, 0,
-                   0, 0, 0, 0, 0, 0, 0, 0,
-                   0, 0, 0, 0, 0, 0, 0, 0,
-                   0, 0, 0, 0, 0, 0, 0, 0];
-
-    var past_pitches = pitches;
-
-    var image_freqs = [
-      ntv[0],
-      ntv[0],
-      ntv[0],
-      ntv[0],
-      ntv[0],
-    ];
-
-    var past_image_freqs = image_freqs;
-
-    var images = [new Image(), new Image(), new Image(), new Image(), new Image(), new Image(1024, 512)];
-      //images[2].src = "images/lion.webp";
-      //images[2].src = "squarewave.png";
-      //images[3].src = "AKWF_piano_0001.8.png";
-      //images[0].src = "images/AKWF_hvoice_0008.wav.blob.png"
-      //images[0].src = "images/lion.webp";
-      images[1].src = "images/AKWF_hvoice_0008.wav.blob.png"
-      images[2].src = "images/AKWF_hvoice_0008.wav.blob.png"
-      images[3].src = "images/AKWF_hvoice_0008.wav.blob.png"
-      images[4].src = "images/AKWF_hvoice_0008.wav.blob.png"
-      //images[5].src = "images/lion.webp";
-      images[0].src = "images/AKWF_hvoice_0008.wav.blob.png"
-      images[0].src = "images/irisgurgle.blob.png";
-      images[1].src = "images/irisgurgle.blob.png";
-      images[2].src = "images/irisgurgle.blob.png";
-      images[3].src = "images/irisgurgle.blob.png";
-      images[4].src = "images/irisgurgle.blob.png";
-      //images[5].src = "images/irisgurgle.blob.png";
-      images[0].src = "images/jesse-eee.png";
-      images[1].src = "images/jesse-eee2.png";
-      images[2].src = "images/jesse-aaa.png";
-      images[3].src = "images/jesse-ohh.png";
-      images[4].src = "images/irisgurgle.blob.png";
-      //images[5].src = "images/jesse-eee.png";
-      //images[5].src = "images/lion.webp";
-      //images[5].src = "images/AKWF_vgame_0070.wav.blob.png";
-
-      //images[0].src = "images/AKWF_vgsin_0004.wav.blob.png";
-      //images[1].src = "images/AKWF_vgsin_0004.wav.blob.png";
-      //images[2].src = "images/AKWF_vgsin_0004.wav.blob.png";
-      //images[3].src = "images/AKWF_vgsin_0004.wav.blob.png";
-      //images[4].src = "images/AKWF_vgsin_0004.wav.blob.png";
-      //images[5].src = "images/AKWF_vgsin_0004.wav.blob.png";
 
     var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    var scriptNode = audioCtx.createScriptProcessor(1024, 0, 1);
+    var scriptNode = audioCtx.createScriptProcessor(1024, 1, 1);
 
     var midi;
     var midi_input;
@@ -164,68 +14,57 @@
     var gl;
     var ctx;
 
-    var main_texture;
-    var time_domain_texture;
-    var time_domain_output_texture;
-    var longTimeMultiple = 2;
-
-    var main_fbo;
-    var time_domain_fbo;
-    var time_domain_output_fbo;
-    var long_time_domain_fbo;
-
+    var width; var height;
     var main_program;
-    var display_program;
-    var time_domain_program;
-    var time_domain_output_program;
-    var time_domain_display_program;
-    var freq_domain_display_program;
+    var videoElement;
+    var videoTexture;
+    var videoActualWidth; var videoActualHeight;
+    var aspect = 1;
+
+    var frame_count = 0;
+
+    var pixels;
 
     console.log( audioCtx.sampleRate );
 
-    var glTextures = [];
-
-    var analyserNode;
-    var fftArray;
-
-    var automataWorker;
-    var automataImageData;
-
-    var javascriptTimeout = 20; //ms
-
-    //var playbackTimeStart = -1;
-
-    var frameCount = 9999;
-
     scriptNode.onaudioprocess = function (event) {
-      var length = event.outputBuffer.length;
       var channelData = event.outputBuffer.getChannelData(0);
 
-      //if(playbackTimeStart < 0){ playbackTimeStart = event.playbackTime};
-      //var seconds = event.playbackTime - playbackTimeStart;
-
-      var sampleCount = (frameCount * 1024);
-      var seconds = frameCount * (1024 / 44100);
-
-      //console.log(frameCount + " " + seconds);
-      setUniforms(seconds, frameCount);
-      drawMain();
-
-      var height = 1;
-      var width = main_width;
-      if(!buffer) {
-        buffer = new ArrayBuffer(width * height * 4);
-        pcm = new Float32Array(buffer);
-        pixels = new Uint8Array(buffer);
+      videoActualWidth = videoElement.videoWidth;
+      videoActualHeight = videoElement.videoHeight;
+      if(videoActualHeight) {
+        aspect = videoActualWidth / videoActualHeight;
       }
 
-      setFramebuffer(time_domain_output_fbo, main_width, 1);
-      gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+      updateTexture();
+      drawMain();
 
-      channelData.set(pcm);
+      frame_count = frame_count + 1;
+      frame_count = frame_count % 1024;
 
-      frameCount += 1;
-      frameCount %= frameCycle;
+      gl.readPixels(
+        0, 0, width, height,
+        gl.RGBA, gl.UNSIGNED_BYTE,
+        pixels
+      );
+
+      let skips = 64;
+
+      for(var x = 0; x < width; x+=1) {
+        var column_sum = 0;
+
+        for(var c = 0; c < 3; c++) { // RGB
+          var column_sum_of_color = 0;
+          for(var y = 0; y < height; y = y + skips) {
+            column_sum_of_color += pixels[((y * width) + x) * 4 + c];
+          }
+          column_sum += column_sum_of_color;
+        }
+        var column_average = column_sum / (height * 3 / skips); // 0..255
+        var column_intensity = column_average / 255; // 0..1
+        var audio_sample = (column_intensity * 2) - 1;
+        channelData[x] = audio_sample;
+      }
     }
 
     function compile_vertex_shader(id) {
@@ -274,25 +113,20 @@
               positionAttributeLocation, 2, gl.FLOAT, false, 0, 0)
     }
 
-    function setup_images() {
-      for(var i = 0; i < images.length; i++){
-        if(! images[i].src) {
-          images[i].src = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
-          images[i].onload = updateTextures;
-        }
-      }
-    }
-
     function start() {
+      setupVideo();
       setupGL();
       setupAudio();
       setupMIDI();
-      animate();
     }
 
     function setupGL() {
       canvas = document.getElementById("glcanvas");
       gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+
+      width = canvas.width;
+      height = canvas.height;
+      pixels = new Uint8Array(width * height * 4);
 
       var positions = [
         0, 0,
@@ -303,8 +137,6 @@
         1, 0,
       ];
 
-      setup_images();
-
       var vertex_shader = compile_vertex_shader("vertex-shader");
       var main_fragment_shader = compile_fragment_shader("main-fragment-shader");
       main_program = build_program(vertex_shader, main_fragment_shader);
@@ -312,91 +144,43 @@
       assign_positions(main_program, "a_position", positions);
 
       setUniforms();
-      changeNotes();
-      makeTextures();
 
-      main_texture = makeMainTexture();
-
-      main_fbo = gl.createFramebuffer();
-      gl.bindFramebuffer(gl.FRAMEBUFFER, main_fbo);
-      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, main_texture, 0);
-
-      setFramebuffer(main_fbo, main_width, main_height);
-      //console.log(gl.checkFramebufferStatus(gl.FRAMEBUFFER));
+      initTextures();
 
       gl.clearColor(0, 0, 0, 0);
       gl.clear(gl.COLOR_BUFFER_BIT);
+    }
 
-      var display_fragment_shader = compile_fragment_shader("display-fragment-shader");
-      display_program = build_program(vertex_shader, display_fragment_shader);
-      assign_positions(display_program, "a_position", positions);
-      gl.useProgram(display_program);
-      var imageLocation = gl.getUniformLocation(display_program, "image");
-      gl.uniform1i(imageLocation, 6);
+    function initTextures() {
+      videoTexture = gl.createTexture();
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, videoTexture);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    }
 
-      time_domain_texture = makeTimeDomainTexture(gl.TEXTURE7, main_width);
-      time_domain_fbo = gl.createFramebuffer();
-      gl.bindFramebuffer(gl.FRAMEBUFFER, time_domain_fbo);
-      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, time_domain_texture, 0);
+    function updateTexture() {
+      gl.bindTexture(gl.TEXTURE_2D, videoTexture);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, document.getElementById("test"));
+    }
 
-      var time_domain_fragment_shader = compile_fragment_shader("time-domain-fragment-shader");
-      time_domain_program = build_program(vertex_shader, time_domain_fragment_shader);
-      assign_positions(time_domain_program, "a_position", positions);
-      gl.useProgram(time_domain_program);
-      imageLocation = gl.getUniformLocation(time_domain_program, "image");
-      gl.uniform1i(imageLocation, 6);
-      gl.uniform1i(gl.getUniformLocation(time_domain_program, "height"), main_height);
+    function setupVideo() {
+      videoElement = document.getElementById('video');
 
-      time_domain_output_fbo = gl.createFramebuffer();
-      gl.bindFramebuffer(gl.FRAMEBUFFER, time_domain_output_fbo);
-      time_domain_output_texture = makeTimeDomainOutputTexture(gl.TEXTURE9, main_width);
-      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, time_domain_output_texture, 0);
-
-      var time_domain_output_fragment_shader = compile_fragment_shader("time-domain-output-fragment-shader");
-      time_domain_output_program = build_program(vertex_shader, time_domain_output_fragment_shader);
-      assign_positions(time_domain_output_program, "a_position", positions);
-      gl.useProgram(time_domain_output_program);
-      imageLocation = gl.getUniformLocation(time_domain_output_program, "image");
-      gl.uniform1i(imageLocation, 7);
-
-      var time_domain_display_fragment_shader = compile_fragment_shader("time-domain-display-fragment-shader");
-      time_domain_display_program = build_program(vertex_shader, time_domain_display_fragment_shader);
-      assign_positions(time_domain_display_program, "a_position", positions);
-      gl.useProgram(time_domain_display_program);
-      imageLocation = gl.getUniformLocation(time_domain_display_program, "image");
-      gl.uniform1i(imageLocation, 7);
-
-      var freq_domain_display_fragment_shader = compile_fragment_shader("freq-domain-display-fragment-shader");
-      freq_domain_display_program = build_program(vertex_shader, freq_domain_display_fragment_shader);
-      assign_positions(freq_domain_display_program, "a_position", positions);
-      gl.useProgram(freq_domain_display_program);
-      imageLocation = gl.getUniformLocation(freq_domain_display_program, "image");
-      gl.uniform1i(imageLocation, 8);
+      navigator.mediaDevices.getUserMedia ({video: true}).then(function(stream) {
+        videoElement.src = window.URL.createObjectURL(stream);
+      });
     }
 
     function setupAudio() {
       var gainNode = audioCtx.createGain();
-      gainNode.gain.value = 0.4;
+      gainNode.gain.value = 1.0;
 
-      var screechFilterNode = audioCtx.createBiquadFilter();
-      screechFilterNode.type = "highshelf";
-      screechFilterNode.frequency.value = 3540;
-      screechFilterNode.gain.value = -36.000;
-
-      var filterNode = audioCtx.createBiquadFilter();
-      filterNode.type = "lowpass";
-      filterNode.frequency.value = 12000;
-      filterNode.Q.value = 1.000;
-
-      analyserNode = audioCtx.createAnalyser();
-      analyserNode.fftSize = fftSize;
-      fftArray = new Uint8Array(analyserNode.frequencyBinCount);
-
-      scriptNode.connect(analyserNode);
-      screechFilterNode.connect(filterNode);
-      filterNode.connect(gainNode);
-      gainNode.connect(analyserNode);
-      analyserNode.connect(audioCtx.destination);
+      scriptNode.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
     }
 
     function setupMIDI() {
@@ -444,61 +228,16 @@
 
     function note_on(num, vel) {
       if(vel == 0) { return note_off(num, vel); } // sigh.
-      var pitch = midi2freq(num);
-      console.log("playing " + num + ":" + pitch + " hz");
-      var interval = num % 12;
-
-      if(interval in twelveToneToString) {
-        pitches[twelveToneToString[interval]] = pitch;
-      }
-      if(interval in twelveToneToImage) {
-        image_freqs[twelveToneToImage[interval]] = pitch;
-      }
     }
 
     function note_off(num, vel) {
-      var interval = num % 12;
-      if(interval in twelveToneToString) {
-        pitches[twelveToneToString[interval]] = 0;
-      }
-      if(interval in twelveToneToImage) {
-        image_freqs[twelveToneToImage[interval]] = 0;
-      }
     }
 
-    function setupWorker(){
-      // currently busted
-
-      var blob = new Blob([
-          document.querySelector('#automataWorker').textContent
-      ], { type: "text/javascript" })
-      automataWorker = new Worker(window.URL.createObjectURL(blob));
-      automataWorker.onmessage = receiveAutomata;
-
-      automataTick();
-    }
-
-    function setUniforms(seconds = 0, frameCount = 0) {
+    function setUniforms() {
       gl.useProgram(main_program);
 
-      gl.uniform1fv(gl.getUniformLocation(main_program, "pitches"), pitches);
-      gl.uniform1fv(gl.getUniformLocation(main_program, "past_pitches"), past_pitches);
-      gl.uniform1i(gl.getUniformLocation(main_program, "pitch_count"), 32);
-      gl.uniform2f(gl.getUniformLocation(main_program, "u_resolution"), main_width, main_height);
-      gl.uniform1i(gl.getUniformLocation(main_program, "sing_shades"), ival("sing_shades"));
-
-      gl.uniform1f(gl.getUniformLocation(main_program, "sample_rate"), audioCtx.sampleRate);
-
-      gl.uniform1f(gl.getUniformLocation(main_program, "offset_seconds"), seconds);
-      gl.uniform1i(gl.getUniformLocation(main_program, "frame_count"), frameCount);
-
-      gl.uniform1f(gl.getUniformLocation(main_program, "string_count"), string_count);
-      gl.uniform1f(gl.getUniformLocation(main_program, "image_bands"), image_count);
-
-      gl.uniform1f(gl.getUniformLocation(main_program, "bpm"), bpm);
-
-      gl.uniform1fv(gl.getUniformLocation(main_program, "image_freqs"), image_freqs);
-      gl.uniform1fv(gl.getUniformLocation(main_program, "past_image_freqs"), past_image_freqs);
+      gl.uniform1f(gl.getUniformLocation(main_program, "aspect"), aspect);
+      gl.uniform1i(gl.getUniformLocation(main_program, "frame_count"), frame_count);
     }
 
     function setFramebuffer(fbo, width, height, offset_x = 0, offset_y = 0) {
@@ -510,567 +249,72 @@
     }
 
     function drawMain() {
+      setUniforms();
       gl.useProgram(main_program);
-      setFramebuffer(main_fbo, main_width, main_height);
-      gl.drawArrays(gl.TRIANGLES, 0, 6);
-
-      gl.useProgram(time_domain_program);
-      setFramebuffer(time_domain_fbo, main_width, 1);
-      gl.drawArrays(gl.TRIANGLES, 0, 6);
-
-      gl.useProgram(time_domain_output_program);
-      setFramebuffer(time_domain_output_fbo, main_width, 1);
+      setFramebuffer(null, width, height);
       gl.drawArrays(gl.TRIANGLES, 0, 6);
     }
 
-    function pval(name) {
-      return(ival(name) / 100);
-    }
-
-    function ival(name) {
-      var elm = document.getElementById(name);
-      if(elm) {
-        return(elm.value);
-      } else {
-        return 0;
-      }
-    }
-
-    function setDisplayUniforms() {
-      gl.useProgram(display_program);
-      var matrix = [
-        pval(  "sing_red"), pval(  "samp_red"), 0.0, 0.0,
-        pval("sing_green"), pval("samp_green"), 0.0, 0.0,
-        pval( "sing_blue"), pval( "samp_blue"), 0.0, 0.0,
-        0.0, 0.0, 0.0, 0.0
-      ];
-      gl.uniformMatrix4fv(gl.getUniformLocation(display_program, "colorTransform"), false, matrix);
-    }
-
-    function animate() {
-      setDisplayUniforms();
-      setFramebuffer(null, main_width, main_height, 0, 100);
-      gl.useProgram(display_program);
-      gl.drawArrays(gl.TRIANGLES, 0, 6);
-
-      if( oscilloscope ) {
-        setFramebuffer(null, main_width, 100, 0, 0);
-        gl.useProgram(time_domain_display_program);
-        gl.drawArrays(gl.TRIANGLES, 0, 6);
-      }
-
-      if( spectrogram ) {
-        analyserNode.getByteFrequencyData(fftArray);
-        gl.activeTexture(gl.TEXTURE8);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.ALPHA, analyserNode.frequencyBinCount, 1, 0, gl.ALPHA, gl.UNSIGNED_BYTE, fftArray);
-        setFramebuffer(null, 50, main_height + 100, main_width, 0);
-        gl.useProgram(freq_domain_display_program);
-        gl.drawArrays(gl.TRIANGLES, 0, 6);
-      }
-
-      requestAnimationFrame(animate);
-    }
-
-    function automataTick() {
-      automataWorker.postMessage([]);
-    }
-
-    function receiveAutomata(e) {
-      automataImageData = e.data;
-      images[5] = automataImageData;
-      setTimeout(automataTick, 100);
-    }
-
-    var startMillis;
-    function changeNotes() {
-      var now = new Date();
-      if(! startMillis) {
-        startMillis = now.getTime();
-      }
-      var millis = now.getTime() - startMillis;
-
-      var beats = Math.floor(millis / 1000.0 / 60 * bpm);
-
-      past_pitches = pitches.slice(0);
-      past_image_freqs = image_freqs.slice(0);
-
-      for(var i = 0; i < patterns.length; i++) {
-        var pattern = patterns[i];
-        if(pattern.length > 0) {
-          var pitch = pattern[beats % pattern.length];
-          if(pitches[i] != pitch) {
-            pitches[i] = safeFreq(pitch);
-          }
-        }
-      }
-
-      for(var i = 0; i < samplePatterns.length; i++) {
-        var pattern = samplePatterns[i];
-        if(pattern.length > 0) {
-          var pitch = pattern[beats % pattern.length];
-          if(image_freqs[i] != pitch) {
-            image_freqs[i] = safeFreq(pitch);
-          }
-        }
-      }
-
-      //pitches.sort(function(a,b){return a-b}).reverse();
-      setTimeout(changeNotes, javascriptTimeout);
-    }
-
-    function makeMainTexture() {
-      var texture = gl.createTexture();
-      gl.activeTexture(gl.TEXTURE6);
-      gl.bindTexture(gl.TEXTURE_2D, texture);
-
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, main_width, main_height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-
-      return texture;
-    }
-
-    function makeFftTexture() {
-      var texture = gl.createTexture();
-      gl.activeTexture(gl.TEXTURE8);
-      gl.bindTexture(gl.TEXTURE_2D, texture);
-
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, fftSize/2, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-
-      return texture;
-    }
-
-    function makeTimeDomainTexture(gltexture, width) {
-      var texture = gl.createTexture();
-      gl.activeTexture(gltexture);
-      gl.bindTexture(gl.TEXTURE_2D, texture);
-
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-
-      gl.getExtension('OES_texture_float');
-      //gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, main_width, main_height, 0, gl.RGBA32F, gl.FLOAT, null);
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, 1, 0, gl.RGBA, gl.FLOAT, null);
-
-      return texture;
-    }
-
-    function makeTimeDomainOutputTexture(gltexture, width) {
-      var texture = gl.createTexture();
-      gl.activeTexture(gltexture);
-      gl.bindTexture(gl.TEXTURE_2D, texture);
-
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-
-      return texture;
-    }
-
-
-    function makeTextures() {
-      glTextures = [gl.TEXTURE0, gl.TEXTURE1, gl.TEXTURE2, gl.TEXTURE3, gl.TEXTURE4, gl.TEXTURE5];
-      for(var i = 0; i < images.length; i++) {
-        var texture = gl.createTexture();
-        gl.activeTexture(glTextures[i]);
-        gl.bindTexture(gl.TEXTURE_2D, texture);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, images[i]);
-        var imageLocation = gl.getUniformLocation(main_program, "image" + (i+1));
-        gl.uniform1i(imageLocation, i);
-      }
-
-      updateTextures();
-      //setTimeout(updateTextures, javascriptTimeout);
-    }
-
-    function updateTextures() {
-      for(var i = 0; i < images.length; i++) {
-        gl.activeTexture(glTextures[i]);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, images[i]);
-      }
-
-      //setTimeout(updateTextures, javascriptTimeout * 200);
-      setTimeout(updateRecursiveTexture, 1000);
-    }
-
-    function updateRecursiveTexture() {
-      setFramebuffer(main_fbo, main_width, main_height);
-      gl.activeTexture(glTextures[5]);
-      //gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
-      //gl.copyTexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 0, 0, main_width, main_height, 0);
-
-      setTimeout(updateRecursiveTexture, 100);
-    }
     </script>
     <script id="vertex-shader" type="x-shader/x-vertex">
       precision mediump float;
       attribute vec4 a_position;
       attribute vec2 a_texCoord;
-      uniform vec2 u_resolution;
 
       varying vec2 position;
-      varying vec2 coords;
 
       void main() {
-        position = vec2(a_position[0], a_position[1]);
-        coords = position * u_resolution;
+        position = a_position.xy;
         gl_Position = 2.0 * a_position - 1.0;
       }
     </script>
     <script id="main-fragment-shader" type="x-shader/x-fragment">
     precision highp float;
 
-    varying vec2 position;
-    varying vec2 coords;
-
-    uniform float sample_rate;
-    uniform int offset_seconds_int;
-    uniform float offset_seconds;
+    uniform float aspect;
     uniform int frame_count;
+    uniform sampler2D uSampler;
 
-    uniform float pitches[32];
-    uniform float past_pitches[32];
-    uniform int pitch_count;
-    uniform float string_count;
-    uniform int sing_shades;
-
-    uniform sampler2D image1;
-    uniform sampler2D image2;
-    uniform sampler2D image3;
-    uniform sampler2D image4;
-    uniform sampler2D image5;
-
-    uniform sampler2D image6;
-
-    uniform float image_bands;
-    uniform float image_freqs[5];
-    uniform float past_image_freqs[5];
-
-    uniform float bpm;
+    varying vec2 position;
 
     const float pi = acos(-1.0);
-    const float tau = pi * 2.0;
-
-    float norm(float s) {
-      return s / 2.0 + 0.5;
-    }
-
-    float denorm(float s) {
-      return (s - 0.5) * 2.0;
-    }
-
-    vec2 complex_square( vec2 v ) {
-      return vec2(
-          v.x * v.x - v.y * v.y,
-          v.x * v.y * 2.0
-          );
-    }
-
-    vec3 rgb2hsv(vec3 c) {
-	vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
-	vec4 p = mix(vec4(c.bg, K.wz), vec4(c.gb, K.xy), step(c.b, c.g));
-	vec4 q = mix(vec4(p.xyw, c.r), vec4(c.r, p.yzx), step(p.x, c.r));
-
-	float d = q.x - min(q.w, q.y);
-	float e = 1.0e-10;
-	return vec3(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x);
-    }
-
-    vec3 hsv2rgb(vec3 c) {
-	vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
-	vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
-	return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
-    }
-
-    float rgb2grey(vec3 c) {
-	return (c.r + c.g + c.b) / 3.0;
-    }
 
     void main() {
-      float extra_offset = coords.x / sample_rate;
-      float seconds = offset_seconds + extra_offset;
-      float sing = 0.0;
-      float samp = 0.0;
+      vec4 texelColor;
+      float acc = 0.;
+      vec2 sampleAt;
+      int sampleNum = int(position.x * 1024.0);
 
-      //int sing_shades = 5;//54;
+      float i = position.y * 1024.;
+      float circumference = float(i);
+      float radius = circumference / 2.*pi / 1024.0;
+      float unit = 2.*pi / circumference;
+      float phi = float(sampleNum) * unit;
 
-      float degrader = 0.0;
+      float a = mod( float(frame_count) * 1024. , circumference);
+      float b = mod(circumference - a, circumference);
 
-      for(int i = 0; i < 32; i++){
-        float pitch_part = mod(position.y * string_count, float(pitch_count));
-        if( pitch_part - float(i) >= 0.0 && pitch_part - float(i) < 1.0 ) {
-          float vertical_part = pitch_part - float(i);
-          float intensity = 1.10;
-          float fshades = float(sing_shades);
-          //fshades = pow(2.0, floor(position.x * 4.0));
-          sing = norm(sin(
-            seconds * pitches[i] * 2.0 * pi
-          ) * intensity ) * position.x;
-          sing += norm(sin(
-            seconds * past_pitches[i] * 2.0 * pi
-          ) * intensity ) * (1.0 - position.x);
-          float red_shade = sing * fshades;
-          float major_shade = floor(red_shade + 0.5);
-          float shade_error = major_shade - red_shade;
-          sing = major_shade / fshades;
-          if(shade_error > 0.0 && vertical_part < shade_error) {
-            sing -= (1.0 / fshades) * sign(shade_error);
-          } else if (shade_error < 0.0 && 1.0-vertical_part < -shade_error) {
-            sing -= (1.0 / fshades) * sign(shade_error);
-          }
-        }
-      }
+      sampleAt = ((vec2( cos(phi), sin(phi)) * radius) + 0.5) * 1.;
+      //sampleAt.x = sampleAt.x + b / 1024.;
+      //sampleAt = position;
+      sampleAt = (sampleAt - 0.5);
+      sampleAt = vec2(sampleAt.x / aspect, sampleAt.y);
+      sampleAt = (sampleAt + 0.5);
+      texelColor = texture2D(uSampler, sampleAt);
+      acc += (texelColor.r + texelColor.g + texelColor.b) / 3.0;
+      gl_FragColor = vec4(texelColor.r, texelColor.g, texelColor.b, 1);
 
-      float image_band_num = floor(position.y * image_bands);
-      float image_vertical_offset = (image_band_num / image_bands);
-      float image_y = 1.0 - (position.y - image_vertical_offset) * image_bands;
-
-      float image_frequency;
-      float previous_image_frequency;
-      float image_x;
-      float image_xp;
-
-      for(int i = 0; i < 5; i++) {
-        if(int(image_band_num) == i) {
-          image_frequency = image_freqs[i];
-          previous_image_frequency = past_image_freqs[i];
-          image_x = mod(seconds * image_freqs[i], 1.0);
-          image_xp = mod(seconds * past_image_freqs[i], 1.0);
-        }
-      }
-
-      float height = 0.8;
-      vec2 sample_position = vec2(image_x, image_y / height );
-      vec2 sample_position_past = vec2(image_xp, image_y / height );
-      vec4 sample;
-      vec4 samplep;
-      if(image_band_num == 0.0) {
-        sample = texture2D(image1, sample_position);
-        samplep = texture2D(image1, sample_position_past);
-      } else if(image_band_num == 1.0) {
-        sample = texture2D(image2, sample_position);
-        samplep = texture2D(image2, sample_position_past);
-      } else if(image_band_num == 2.0) {
-        sample = texture2D(image3, sample_position);
-        samplep = texture2D(image3, sample_position_past);
-      } else if(image_band_num == 3.0) {
-        sample = texture2D(image4, sample_position);
-        samplep = texture2D(image4, sample_position_past);
-      } else {
-        sample = texture2D(image5, sample_position);
-        samplep = texture2D(image5, sample_position_past);
-      }
-
-      if(image_frequency == 0.0){
-        sample = vec4(0.5, 0.5, 0.5, 1.0);
-      }
-      if(previous_image_frequency == 0.0){
-        samplep = vec4(0.5, 0.5, 0.5, 1.0);
-      }
-      if(sample_position.y >= 1.0 || sample_position.y < 0.0){
-        sample = vec4(0.5, 0.5, 0.5, 1.0);
-        samplep = vec4(0.5, 0.5, 0.5, 1.0);
-      }
-
-      samp = (0.5 * (1.0 - sample.a) + rgb2grey(sample.rgb) * sample.a) * position.x
-            + (0.5 * (1.0 - samplep.a) + rgb2grey(samplep.rgb) * samplep.a) * (1.0 - position.x)
-      ;
-
-      //float shine = (sing + samp - 1.0) + 0.5;
-
-      vec4 pattern = vec4(sing, samp, 0.5, 1);
-      gl_FragColor.rgba = pattern;
+      //acc = acc / 1024.0;
+      //gl_FragColor = vec4(acc, acc, acc, 1);
     }
     </script>
-    <script id="display-fragment-shader" type="x-shader/x-fragment">
-    precision highp float;
-
-    varying vec2 position;
-
-    uniform sampler2D image;
-
-    uniform mat4 colorTransform;
-    void main() {
-      mat4 colorTransform1 = mat4(
-         0.7000,   0.0000,     0.0000,   0.0000,  // red
-         0.3000,   0.5000,     0.0000,   0.0000,  // green
-         0.5000,   0.5000,     0.0000,   0.0000,  // blue
-         0.0000,   0.0000,     0.0000,   0.0000   // alpha-unused
-      //   sing,     samp,     0,        1
-      );
-
-      vec4 pattern = texture2D(image, position);
-      vec4 colors = (pattern - 0.5) * colorTransform + 0.5;
-      gl_FragColor.rgba = vec4(colors.rgb, 1.0);
-    }
-    </script>
-    <script id="time-domain-fragment-shader" type="x-shader/x-fragment">
-    precision highp float;
-
-    varying vec2 position;
-
-    uniform sampler2D image;
-    uniform int height;
-
-    void main() {
-      int acc = 0;
-      vec4 sample;
-
-      for(int i = 0; i < 1024; i++) {
-        if(i < height) {
-          sample = texture2D(image, vec2(position.x, float(i) / float(height)));
-          acc = acc + int(sample.r * 255.0) + int(sample.g * 255.0) + int(sample.b * 255.0);
-        }
-      }
-      float amp = float(acc) / (float(height) * 255.0 * 3.0 / 2.0) - 1.0;
-      gl_FragColor.rgba = vec4(amp, amp, amp, amp);
-    }
-    </script>
-    <script id="time-domain-output-fragment-shader" type="x-shader/x-fragment">
-    precision highp float;
-
-    varying vec2 position;
-
-    uniform sampler2D image;
-
-    #define FLOAT_MAX  1.70141184e38
-    #define FLOAT_MIN  1.17549435e-38
-
-    lowp vec4 encode_float(highp float v) {
-      highp float av = abs(v);
-
-      //Handle special cases
-      if(av < FLOAT_MIN) {
-	return vec4(0.0, 0.0, 0.0, 0.0);
-      } else if(v > FLOAT_MAX) {
-	return vec4(127.0, 128.0, 0.0, 0.0) / 255.0;
-      } else if(v < -FLOAT_MAX) {
-	return vec4(255.0, 128.0, 0.0, 0.0) / 255.0;
-      }
-
-      highp vec4 c = vec4(0,0,0,0);
-
-      //Compute exponent and mantissa
-      highp float e = floor(log2(av));
-      highp float m = av * pow(2.0, -e) - 1.0;
-
-      //Unpack mantissa
-      c[2] = floor(128.0 * m);
-      m -= c[2] / 128.0;
-      c[1] = floor(32768.0 * m);
-      m -= c[1] / 32768.0;
-      c[0] = floor(8388608.0 * m);
-
-      //Unpack exponent
-      highp float ebias = e + 127.0;
-      c[3] = floor(ebias / 2.0);
-      ebias -= c[3] * 2.0;
-      c[2] += floor(ebias) * 128.0;
-
-      //Unpack sign bit
-      c[3] += 128.0 * step(0.0, -v);
-
-      //Scale back to range
-      return c / 255.0;
-    }
-
-
-    void main() {
-      int acc = 0;
-      vec4 sample;
-
-      sample = texture2D(image, vec2(position.x, 1));
-      gl_FragColor.xyzw = encode_float(sample.r);
-    }
-    </script>
-    <script id="time-domain-display-fragment-shader" type="x-shader/x-fragment">
-    precision highp float;
-
-    varying vec2 position;
-
-    uniform sampler2D image;
-
-    void main() {
-      int acc = 0;
-      vec4 sample;
-      float color = 0.0;
-
-      sample = texture2D(image, vec2(position.x, 1));
-      float y = (2.0 * position.y) - 1.0;
-
-      if(y > sample.r) {
-        if( sample.r < 0.0 && y < 0.0){
-          color = 1.0;
-        }
-      } else {
-        if( sample.r > 0.0 && y > 0.0){
-          color = 1.0;
-        }
-      }
-
-      gl_FragColor.rgba = vec4(0.0, color, 0.0, 1.0);
-    }
-    </script>
-    <script id="freq-domain-display-fragment-shader" type="x-shader/x-fragment">
-    precision highp float;
-
-    varying vec2 position;
-
-    uniform sampler2D image;
-
-    void main() {
-      float color = 0.0;
-      vec4 sample;
-
-      sample = texture2D(image, vec2(position.y / 2.0, 1));
-      color = sample.a;
-
-      gl_FragColor.rgba = vec4(color * 250.0, color * 3.0, color, 1.0);
-    }
-    </script>
-    <script id="automataWorker" type="javascript/worker">
-      self.onmessage = function(e) {
-        var imageData, w, h;
-        [imageData, w, h] = e.message;
-        if(! imageData){
-          imageData = new ImageData(w, h);
-        }
-        runAutomata(imageData, w, h);
-      };
-
-      function runAutomata(imageData, w, h) {
-        return 1;
-        return imageData;
-      }
-    </script>
-
     <style>
       #container {
-        width: 1024px;
-        height: 512px;
+        width: 325px;
+        height: 325px;
         position:absolute;
         margin: auto;
         top: 0; bottom: 0; left: 0; right: 0;
-      }
-      canvas {
-        border: 0px solid red;
       }
       body {
         background: #808080;
@@ -1081,30 +325,25 @@
         height: 100%
         width: 100%;
       }
-      input.vertical {
-        height: 100px;
-        width: 20px;
-        writing-mode: bt-lr; /* IE */
-        -webkit-appearance: slider-vertical; /* WebKit */
+      canvas {
+        border: 1px solid skyblue;
+        width: 325px; height:325px;
       }
-      .center {
-        display: block;
-        text-align: center;
-        width: 100%;
+      video {
+        display: none;
       }
-      table {
-        margin: auto;
+      #test {
+        ndisplay: none;
       }
     </style>
   </head>
-  <body>
-    <body onload="start()" >
-      <div id=page>
-        <div id="container">
-          <canvas id="glcanvas" width="1224" height="612"></canvas>
-        </div>
+  <body onload="start()" >
+    <div id=page>
+      <div id="container">
+        <video id="video" autoplay="true" width="325" height="325"></video>
+        <img id="test" src="images/fundamental8.png">
+        <canvas id="glcanvas" width="1024" height="1024"></canvas>
       </div>
-      <div id="root"></div>
-    </body>
+    </div>
   </body>
 </html>
