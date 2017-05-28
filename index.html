@@ -287,8 +287,8 @@
       float acc = 0.;
       vec2 sampleAt;
 
-      float band = 1024. / (325. / 5.);
-      float circumference = ceil(position.y * 256. / band) * band;
+      float band = 12. / 7.;
+      float circumference = exp2( ceil( (1.-position.y/2.) * log2(1024.) * band) / band );
       float radius = circumference / (2.*pi) / 64.;
       float unit = 2.*pi / circumference;
       float phi = position.x * 1024. * unit;
