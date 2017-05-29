@@ -6,7 +6,10 @@
 
     var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     var sample_rate = audioCtx.sampleRate; // 44100 hz
-    var scriptNode = audioCtx.createScriptProcessor(1024, 1, 1);
+    var samples_per_frame = 1024;
+    var scriptNode = audioCtx.createScriptProcessor(samples_per_frame, 1, 1);
+
+    console.log( sample_rate );
 
     var midi;
     var midi_input;
@@ -17,57 +20,22 @@
 
     var width; var height;
     var main_program;
-    var videoElement;
-    var videoTexture;
-    var videoActualWidth; var videoActualHeight;
-    var aspect = 1;
 
+    var samples = [1,2,3,4,5,6,7];
     var frame_count = 0;
 
-    var pixels;
-
-    console.log( sample_rate );
-
     scriptNode.onaudioprocess = function (event) {
-      var channelData = event.outputBuffer.getChannelData(0);
+      var channelData = event.inputBuffer.getChannelData(0);
 
-      videoActualWidth = videoElement.videoWidth;
-      videoActualHeight = videoElement.videoHeight;
-      if(videoActualHeight) {
-        aspect = videoActualWidth / videoActualHeight;
-      }
-
-      updateTexture();
+      //for(var i = 0; i < samples_per_frame; i++) {
+      //  var t = event.playbackTime + (i / sample_rate);
+      //  samples[i] = Math.sin(t * 2 * Math.PI * 44100 / 1024 * 8) * 0.5;
+      //}
+      samples = channelData;
       drawMain();
 
       frame_count = frame_count + 1;
       frame_count = frame_count % 1024;
-
-      gl.readPixels(
-        0, 0, width, height,
-        gl.RGBA, gl.UNSIGNED_BYTE,
-        pixels
-      );
-
-      let skips = 8;
-
-      for(var x = 0; x < width; x+=1) {
-        var column_sum = 0;
-
-        for(var c = 0; c < 3; c++) { // RGB
-          var column_sum_of_color = 0;
-          for(var y = 0; y < height; y = y + skips) {
-            column_sum_of_color += pixels[((y * width) + x) * 4 + c];
-          }
-          column_sum += column_sum_of_color;
-        }
-        var column_average = column_sum / (height * 3 / skips); // 0..255
-        var column_intensity = column_average / 255; // 0..1
-        var audio_sample = (column_intensity * 2) - 1;
-        channelData[x] = audio_sample;
-        var t = event.playbackTime + (x / sample_rate);
-        //channelData[x] = Math.sin(t * 2 * Math.PI * 44100 / 1024 * 8) * 0.5;
-      }
     }
 
     function compile_vertex_shader(id) {
@@ -117,7 +85,6 @@
     }
 
     function start() {
-      setupVideo();
       setupGL();
       setupAudio();
       setupMIDI();
@@ -129,7 +96,6 @@
 
       width = canvas.width;
       height = canvas.height;
-      pixels = new Uint8Array(width * height * 4);
 
       var positions = [
         0, 0,
@@ -148,42 +114,21 @@
 
       setUniforms();
 
-      initTextures();
-
       gl.clearColor(0, 0, 0, 0);
       gl.clear(gl.COLOR_BUFFER_BIT);
     }
 
-    function initTextures() {
-      videoTexture = gl.createTexture();
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, videoTexture);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    }
-
-    function updateTexture() {
-      gl.bindTexture(gl.TEXTURE_2D, videoTexture);
-      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, document.getElementById("video"));
-    }
-
-    function setupVideo() {
-      videoElement = document.getElementById('video');
-
-      navigator.mediaDevices.getUserMedia ({video: true}).then(function(stream) {
-        videoElement.src = window.URL.createObjectURL(stream);
-      });
-    }
-
     function setupAudio() {
-      var gainNode = audioCtx.createGain();
-      gainNode.gain.value = 2.0;
+      navigator.mediaDevices.getUserMedia ({audio: true}).then(function(stream) {
+        var sourceNode = audioCtx.createMediaStreamSource(stream);
 
-      scriptNode.connect(gainNode);
-      gainNode.connect(audioCtx.destination);
+        var gainNode = audioCtx.createGain();
+        gainNode.gain.value = 2.4;
+
+        sourceNode.connect(gainNode);
+        gainNode.connect(scriptNode);
+        scriptNode.connect(audioCtx.destination);
+      });
     }
 
     function setupMIDI() {
@@ -239,7 +184,7 @@
     function setUniforms() {
       gl.useProgram(main_program);
 
-      gl.uniform1f(gl.getUniformLocation(main_program, "aspect"), aspect);
+      gl.uniform1fv(gl.getUniformLocation(main_program, "samples"), samples);
       gl.uniform1i(gl.getUniformLocation(main_program, "frame_count"), frame_count);
     }
 
@@ -267,48 +212,41 @@
       varying vec2 position;
 
       void main() {
-        position = a_position.xy;
+        position = 2.0 * a_position.xy - 1.0;
         gl_Position = 2.0 * a_position - 1.0;
       }
     </script>
     <script id="main-fragment-shader" type="x-shader/x-fragment">
     precision highp float;
 
-    uniform float aspect;
+    uniform float samples[1023];
     uniform int frame_count;
-    uniform sampler2D uSampler;
 
     varying vec2 position;
 
     const float pi = acos(-1.0);
 
     void main() {
-      vec4 texelColor;
-      float acc = 0.;
-      vec2 sampleAt;
+      float distance = distance(vec2(0,0), position);
+      float radius = distance * 325.0 / 2.0 / 2.0;
+      //float circumference = floor(radius * pi * 2.0 / 20.) * 20.;
+      float circumference = exp2(floor(log2(radius * pi * 2.0) * 12./7.) / (12./7.));
+      float phi = mod(atan(position.y, position.x), 2.*pi);
+      float unit = 2. * pi / circumference;
+      int i = int(phi / unit);
 
-      float band = 12. / 7.;
-      float circumference = exp2( ceil( (1.-position.y/2.) * log2(1024.) * band) / band );
-      float radius = circumference / (2.*pi) / 64.;
-      float unit = 2.*pi / circumference;
-      float phi = position.x * 1024. * unit;
+      float val = 0.5;
 
       float a = mod( float(frame_count) * 1024. , circumference);
       float b = mod(circumference - a, circumference);
-      phi = phi - b * unit;
-
-      sampleAt = ((vec2( cos(phi), sin(phi)) * radius) + 0.5) * 1.;
-      sampleAt.x = sampleAt.x - 0.;
-      //sampleAt = position;
-      sampleAt = (sampleAt - 0.5);
-      sampleAt = vec2(sampleAt.x / aspect, sampleAt.y);
-      sampleAt = (sampleAt + 0.5);
-      texelColor = texture2D(uSampler, sampleAt);
-      acc += (texelColor.r + texelColor.g + texelColor.b) / 3.0;
-      gl_FragColor = vec4(texelColor.r, texelColor.g, texelColor.b, 1);
-
-      //acc = acc / 1024.0;
-      //gl_FragColor = vec4(acc, acc, acc, 1);
+      int bb = int(b);
+      //bb = 0;
+      for(int j=0; j<1023; j++) {
+        if(i + bb == j) {
+          val = samples[j] / 2.0 + 0.5;
+        }
+      }
+      gl_FragColor.rgba = vec4(val,val,val,1);
     }
     </script>
     <style>
@@ -319,6 +257,9 @@
         margin: auto;
         top: 0; bottom: 0; left: 0; right: 0;
       }
+      canvas {
+        border: 1px solid pink;
+      }
       body {
         background: #808080;
         max-width: 100%;
@@ -328,46 +269,12 @@
         height: 100%
         width: 100%;
       }
-      canvas {
-        border: 1px solid skyblue;
-        width: 325px; height:325px;
-      }
-      .float {
-        position: absolute;
-        right: 0px;
-        left: 0px;
-        top: 2px;
-        width: 100%;
-        margin: auto;
-        text-align:center;
-      }
-      .crop {
-        width:33px;
-        height:33px;
-        border: 0px solid yellow;
-        display: inline-block;
-        text-align:center;
-        overflow: hidden;
-      }
-      #video {
-        margin-left:  -100px;
-        margin-right: -100px;
-      }
-      #test {
-        display: none;
-      }
     </style>
   </head>
   <body onload="start()" >
     <div id=page>
-      <div class="float">
-      <span class="crop">
-        <video id="video" autoplay="true" height="33"></video>
-      </span>
-      </div>
       <div id="container">
-        <img id="test" src="images/fundamental8.png">
-        <canvas id="glcanvas" width="1024" height="1024"></canvas>
+        <canvas id="glcanvas" width="325" height="325"></canvas>
       </div>
     </div>
   </body>
