@@ -23,6 +23,7 @@
 
     var samples = [1,2,3,4,5,6,7];
     var frame_count = 0;
+    var rotate = 0;
 
     scriptNode.onaudioprocess = function (event) {
       var channelData = event.inputBuffer.getChannelData(0);
@@ -36,6 +37,11 @@
 
       frame_count = frame_count + 1;
       frame_count = frame_count % 1024;
+    }
+
+    function rerot(target){
+      rotate = target.value;
+      console.log(rotate);
     }
 
     function compile_vertex_shader(id) {
@@ -125,8 +131,13 @@
         var gainNode = audioCtx.createGain();
         gainNode.gain.value = 2.4;
 
+        var filterNode = audioCtx.createBiquadFilter();
+        filterNode.type = 'lowpass';
+        filterNode.frequency.value = 16 * 44100 / 1024;
+
         sourceNode.connect(gainNode);
-        gainNode.connect(scriptNode);
+        gainNode.connect(filterNode);
+        filterNode.connect(scriptNode);
         scriptNode.connect(audioCtx.destination);
       });
     }
@@ -186,6 +197,7 @@
 
       gl.uniform1fv(gl.getUniformLocation(main_program, "samples"), samples);
       gl.uniform1i(gl.getUniformLocation(main_program, "frame_count"), frame_count);
+      gl.uniform1f(gl.getUniformLocation(main_program, "rotate"), rotate);
     }
 
     function setFramebuffer(fbo, width, height, offset_x = 0, offset_y = 0) {
@@ -219,8 +231,9 @@
     <script id="main-fragment-shader" type="x-shader/x-fragment">
     precision highp float;
 
-    uniform float samples[1023];
+    uniform float samples[1022];
     uniform int frame_count;
+    uniform float rotate;
 
     varying vec2 position;
 
@@ -231,7 +244,8 @@
       float radius = distance * 325.0 / 2.0 / 2.0;
       //float circumference = floor(radius * pi * 2.0 / 20.) * 20.;
       float circumference = exp2(floor(log2(radius * pi * 2.0) * 12./7.) / (12./7.));
-      float phi = mod(atan(position.y, position.x), 2.*pi);
+      circumference = 256.;
+      float phi = mod(atan(position.y, position.x) + rotate *2.*pi / 360.0, 2.*pi);
       float unit = 2. * pi / circumference;
       int i = int(phi / unit);
 
@@ -246,7 +260,7 @@
           val = samples[j] / 2.0 + 0.5;
         }
       }
-      gl_FragColor.rgba = vec4(val,val,val,1);
+      gl_FragColor.rgba = vec4(1. - val, 1. - val,1. - val,1);
     }
     </script>
     <style>
@@ -275,6 +289,7 @@
     <div id=page>
       <div id="container">
         <canvas id="glcanvas" width="325" height="325"></canvas>
+        <input type="number" onchange="rerot(this)" value="1">
       </div>
     </div>
   </body>

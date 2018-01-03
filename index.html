@@ -21,6 +21,7 @@
     var videoTexture;
     var videoActualWidth; var videoActualHeight;
     var aspect = 1;
+    var zoom = 3;
 
     var frame_count = 0;
 
@@ -68,6 +69,11 @@
         var t = event.playbackTime + (x / sample_rate);
         //channelData[x] = Math.sin(t * 2 * Math.PI * 44100 / 1024 * 8) * 0.5;
       }
+    }
+
+    function rezoom(target){
+      zoom = target.value;
+      console.log(zoom);
     }
 
     function compile_vertex_shader(id) {
@@ -240,6 +246,7 @@
       gl.useProgram(main_program);
 
       gl.uniform1f(gl.getUniformLocation(main_program, "aspect"), aspect);
+      gl.uniform1f(gl.getUniformLocation(main_program, "zoom"), zoom);
       gl.uniform1i(gl.getUniformLocation(main_program, "frame_count"), frame_count);
     }
 
@@ -275,6 +282,7 @@
     precision highp float;
 
     uniform float aspect;
+    uniform float zoom;
     uniform int frame_count;
     uniform sampler2D uSampler;
 
@@ -289,6 +297,7 @@
 
       float band = 12. / 7.;
       float circumference = exp2( ceil( (1.-position.y/2.) * log2(1024.) * band) / band );
+      circumference = 256.;
       float radius = circumference / (2.*pi) / 64.;
       float unit = 2.*pi / circumference;
       float phi = position.x * 1024. * unit;
@@ -298,16 +307,23 @@
       phi = phi - b * unit;
 
       sampleAt = ((vec2( cos(phi), sin(phi)) * radius) + 0.5) * 1.;
+      //sampleAt = position; // calibrator
+
       sampleAt.x = sampleAt.x - 0.;
       //sampleAt = position;
       sampleAt = (sampleAt - 0.5);
       sampleAt = vec2(sampleAt.x / aspect, sampleAt.y);
+      sampleAt = sampleAt / zoom;
       sampleAt = (sampleAt + 0.5);
       texelColor = texture2D(uSampler, sampleAt);
       acc += (texelColor.r + texelColor.g + texelColor.b) / 3.0;
       gl_FragColor = vec4(texelColor.r, texelColor.g, texelColor.b, 1);
 
       //acc = acc / 1024.0;
+      // calibrator:
+      //if(distance(position, vec2(0.5, 0.5)) < 0.03) {
+      //  gl_FragColor = vec4(1.0,0,0,1.0);
+      //}
       //gl_FragColor = vec4(acc, acc, acc, 1);
     }
     </script>
@@ -358,16 +374,17 @@
       }
     </style>
   </head>
-  <body onload="start()" >
+  <body onload="start()">
     <div id=page>
       <div class="float">
-      <span class="crop">
-        <video id="video" autoplay="true" height="33"></video>
-      </span>
+        <span class="crop">
+          <video id="video" autoplay="true" height="33"></video>
+        </span>
       </div>
       <div id="container">
         <img id="test" src="images/fundamental8.png">
         <canvas id="glcanvas" width="1024" height="1024"></canvas>
+        <input type="number" onchange="rezoom(this)" value="3">
       </div>
     </div>
   </body>
