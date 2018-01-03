@@ -1,0 +1,391 @@
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <script>
+    'use strict';
+
+    var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    var sample_rate = audioCtx.sampleRate; // 44100 hz
+    var scriptNode = audioCtx.createScriptProcessor(1024, 1, 1);
+
+    var midi;
+    var midi_input;
+
+    var canvas;
+    var gl;
+    var ctx;
+
+    var width; var height;
+    var main_program;
+    var videoElement;
+    var videoTexture;
+    var videoActualWidth; var videoActualHeight;
+    var aspect = 1;
+    var zoom = 3;
+
+    var frame_count = 0;
+
+    var pixels;
+
+    console.log( sample_rate );
+
+    scriptNode.onaudioprocess = function (event) {
+      var channelData = event.outputBuffer.getChannelData(0);
+
+      videoActualWidth = videoElement.videoWidth;
+      videoActualHeight = videoElement.videoHeight;
+      if(videoActualHeight) {
+        aspect = videoActualWidth / videoActualHeight;
+      }
+
+      updateTexture();
+      drawMain();
+
+      frame_count = frame_count + 1;
+      frame_count = frame_count % 1024;
+
+      gl.readPixels(
+        0, 0, width, height,
+        gl.RGBA, gl.UNSIGNED_BYTE,
+        pixels
+      );
+
+      let skips = 8;
+
+      for(var x = 0; x < width; x+=1) {
+        var column_sum = 0;
+
+        for(var c = 0; c < 3; c++) { // RGB
+          var column_sum_of_color = 0;
+          for(var y = 0; y < height; y = y + skips) {
+            column_sum_of_color += pixels[((y * width) + x) * 4 + c];
+          }
+          column_sum += column_sum_of_color;
+        }
+        var column_average = column_sum / (height * 3 / skips); // 0..255
+        var column_intensity = column_average / 255; // 0..1
+        var audio_sample = (column_intensity * 2) - 1;
+        channelData[x] = audio_sample;
+        var t = event.playbackTime + (x / sample_rate);
+        //channelData[x] = Math.sin(t * 2 * Math.PI * 44100 / 1024 * 8) * 0.5;
+      }
+    }
+
+    function rezoom(target){
+      zoom = target.value;
+      console.log(zoom);
+    }
+
+    function compile_vertex_shader(id) {
+      var vertex_shader = gl.createShader(gl.VERTEX_SHADER);
+      gl.shaderSource(vertex_shader, document.getElementById(id).text);
+      gl.compileShader(vertex_shader);
+
+      var success = gl.getShaderParameter(vertex_shader, gl.COMPILE_STATUS);
+      if (!success) {
+        console.log(gl.getShaderInfoLog(vertex_shader));
+      }
+      return vertex_shader;
+    }
+
+    function compile_fragment_shader(id){
+      var fragment_shader = gl.createShader(gl.FRAGMENT_SHADER);
+      gl.shaderSource(fragment_shader, document.getElementById(id).text);
+      gl.compileShader(fragment_shader);
+
+      var success = gl.getShaderParameter(fragment_shader, gl.COMPILE_STATUS);
+      if (!success) {
+        console.log(gl.getShaderInfoLog(fragment_shader));
+      }
+      return fragment_shader;
+    }
+
+    function build_program(vertex_shader, fragment_shader) {
+      var program = gl.createProgram();
+      gl.attachShader(program, vertex_shader);
+      gl.attachShader(program, fragment_shader);
+      gl.linkProgram(program);
+      var success = gl.getProgramParameter(program, gl.LINK_STATUS);
+      if (!success) {
+        console.log(gl.getProgramInfoLog(program));
+      }
+      return program;
+    }
+
+    function assign_positions(program, attribute, positions) {
+      var positionAttributeLocation = gl.getAttribLocation(program, attribute);
+      var positionBuffer = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
+      gl.enableVertexAttribArray(positionAttributeLocation);
+      gl.vertexAttribPointer(
+              positionAttributeLocation, 2, gl.FLOAT, false, 0, 0)
+    }
+
+    function start() {
+      setupVideo();
+      setupGL();
+      setupAudio();
+      setupMIDI();
+    }
+
+    function setupGL() {
+      canvas = document.getElementById("glcanvas");
+      gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+
+      width = canvas.width;
+      height = canvas.height;
+      pixels = new Uint8Array(width * height * 4);
+
+      var positions = [
+        0, 0,
+        1, 1,
+        0, 1,
+        0, 0,
+        1, 1,
+        1, 0,
+      ];
+
+      var vertex_shader = compile_vertex_shader("vertex-shader");
+      var main_fragment_shader = compile_fragment_shader("main-fragment-shader");
+      main_program = build_program(vertex_shader, main_fragment_shader);
+
+      assign_positions(main_program, "a_position", positions);
+
+      setUniforms();
+
+      initTextures();
+
+      gl.clearColor(0, 0, 0, 0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+    }
+
+    function initTextures() {
+      videoTexture = gl.createTexture();
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, videoTexture);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    }
+
+    function updateTexture() {
+      gl.bindTexture(gl.TEXTURE_2D, videoTexture);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, document.getElementById("video"));
+    }
+
+    function setupVideo() {
+      videoElement = document.getElementById('video');
+
+      navigator.mediaDevices.getUserMedia ({video: true}).then(function(stream) {
+        videoElement.src = window.URL.createObjectURL(stream);
+      });
+    }
+
+    function setupAudio() {
+      var gainNode = audioCtx.createGain();
+      gainNode.gain.value = 2.0;
+
+      scriptNode.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+    }
+
+    function setupMIDI() {
+      return;
+      if(!("requestMIDIAccess" in navigator)) {
+        return;
+      }
+      navigator.requestMIDIAccess().then(function(midi_access){
+        midi = midi_access;
+        midi.onstatechange = getMidiInputs;
+        getMidiInputs();
+      })
+    }
+
+    function getMidiInputs() {
+      console.log("midi inputs: " + midi.inputs.size);
+      if(midi.inputs.size) {
+        midi_input = midi.inputs.values().next().value;
+        midi_input.onmidimessage = handleMidi;
+      }
+    }
+
+    function handleMidi(e) {
+      console.log(e.data);
+      var message_species = e.data[0];
+      if(message_species < 240) { //"channel-specific message"
+        var command = e.data[0] >> 4;
+        var channel = (e.data[0] & 0xf) + 1;
+        console.log("command: " + command + ", channel: " + channel);
+
+        var data1, data2;
+        if (e.data.length > 1) {
+          data1 = e.data[1];
+          data2 = e.data.length > 2 ? e.data[2] : undefined;
+        }
+
+        if( command == 9 ) {
+          note_on(data1, data2);
+        }
+        if( command == 8 ) {
+          note_off(data1, data2);
+        }
+      }
+    }
+
+    function note_on(num, vel) {
+      if(vel == 0) { return note_off(num, vel); } // sigh.
+    }
+
+    function note_off(num, vel) {
+    }
+
+    function setUniforms() {
+      gl.useProgram(main_program);
+
+      gl.uniform1f(gl.getUniformLocation(main_program, "aspect"), aspect);
+      gl.uniform1f(gl.getUniformLocation(main_program, "zoom"), zoom);
+      gl.uniform1i(gl.getUniformLocation(main_program, "frame_count"), frame_count);
+    }
+
+    function setFramebuffer(fbo, width, height, offset_x = 0, offset_y = 0) {
+      // make this the framebuffer we are rendering to.
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+
+      // Tell webgl the viewport setting needed for framebuffer.
+      gl.viewport(offset_x, offset_y, width, height);
+    }
+
+    function drawMain() {
+      setUniforms();
+      gl.useProgram(main_program);
+      setFramebuffer(null, width, height);
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+    }
+
+    </script>
+    <script id="vertex-shader" type="x-shader/x-vertex">
+      precision mediump float;
+      attribute vec4 a_position;
+      attribute vec2 a_texCoord;
+
+      varying vec2 position;
+
+      void main() {
+        position = a_position.xy;
+        gl_Position = 2.0 * a_position - 1.0;
+      }
+    </script>
+    <script id="main-fragment-shader" type="x-shader/x-fragment">
+    precision highp float;
+
+    uniform float aspect;
+    uniform float zoom;
+    uniform int frame_count;
+    uniform sampler2D uSampler;
+
+    varying vec2 position;
+
+    const float pi = acos(-1.0);
+
+    void main() {
+      vec4 texelColor;
+      float acc = 0.;
+      vec2 sampleAt;
+
+      float band = 12. / 7.;
+      float circumference = exp2( ceil( (1.-position.y/2.) * log2(1024.) * band) / band );
+      circumference = 256.;
+      float radius = circumference / (2.*pi) / 64.;
+      float unit = 2.*pi / circumference;
+      float phi = position.x * 1024. * unit;
+
+      float a = mod( float(frame_count) * 1024. , circumference);
+      float b = mod(circumference - a, circumference);
+      phi = phi - b * unit;
+
+      sampleAt = ((vec2( cos(phi), sin(phi)) * radius) + 0.5) * 1.;
+      //sampleAt = position; // calibrator
+
+      sampleAt.x = sampleAt.x - 0.;
+      //sampleAt = position;
+      sampleAt = (sampleAt - 0.5);
+      sampleAt = vec2(sampleAt.x / aspect, sampleAt.y);
+      sampleAt = sampleAt / zoom;
+      sampleAt = (sampleAt + 0.5);
+      texelColor = texture2D(uSampler, sampleAt);
+      acc += (texelColor.r + texelColor.g + texelColor.b) / 3.0;
+      gl_FragColor = vec4(texelColor.r, texelColor.g, texelColor.b, 1);
+
+      //acc = acc / 1024.0;
+      // calibrator:
+      //if(distance(position, vec2(0.5, 0.5)) < 0.03) {
+      //  gl_FragColor = vec4(1.0,0,0,1.0);
+      //}
+      //gl_FragColor = vec4(acc, acc, acc, 1);
+    }
+    </script>
+    <style>
+      #container {
+        width: 325px;
+        height: 325px;
+        position:absolute;
+        margin: auto;
+        top: 0; bottom: 0; left: 0; right: 0;
+      }
+      body {
+        background: #808080;
+        max-width: 100%;
+        height: 100%;
+      }
+      #page {
+        height: 100%
+        width: 100%;
+      }
+      canvas {
+        border: 1px solid skyblue;
+        width: 325px; height:325px;
+      }
+      .float {
+        position: absolute;
+        right: 0px;
+        left: 0px;
+        top: 2px;
+        width: 100%;
+        margin: auto;
+        text-align:center;
+      }
+      .crop {
+        width:33px;
+        height:33px;
+        border: 0px solid yellow;
+        display: inline-block;
+        text-align:center;
+        overflow: hidden;
+      }
+      #video {
+        margin-left:  -100px;
+        margin-right: -100px;
+      }
+      #test {
+        display: none;
+      }
+    </style>
+  </head>
+  <body onload="start()">
+    <div id=page>
+      <div class="float">
+        <span class="crop">
+          <video id="video" autoplay="true" height="33"></video>
+        </span>
+      </div>
+      <div id="container">
+        <img id="test" src="images/fundamental8.png">
+        <canvas id="glcanvas" width="1024" height="1024"></canvas>
+        <input type="number" onchange="rezoom(this)" value="3">
+      </div>
+    </div>
+  </body>
+</html>
