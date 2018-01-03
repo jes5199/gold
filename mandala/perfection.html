@@ -15,7 +15,10 @@
       text-align: right;
     }
     canvas {
-      padding: 50px;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
     }
   </style>
 </head>
@@ -155,7 +158,14 @@
     requestAnimationFrame(animate);
   }
 
+  function setScreensaverMode() {
+    if(window.location.search.match("screensaver")) {
+      document.getElementById("controls").style.display = "none";
+    }
+  }
+
   function start(){
+    setScreensaverMode();
     setupGL();
     playAt = Date.now();
     drawGL();
@@ -224,11 +234,11 @@
     }
 
     fragColor = lifeColor * 1.1;
-}
+  }
 
-void main() {
-  mainImage(gl_FragColor, position);
-}
+  void main() {
+    mainImage(gl_FragColor, position);
+  }
     </script>
 <body onload="start()">
   <div id="controls">
