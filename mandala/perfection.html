@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Portals of Perfection</title>
+  <style>
+    body {
+      text-align: center;
+      background: black;
+    }
+    a {text-decoration: none; font-size: 20pt;}
+    input {
+      font-family: Menlo, DejaVu Sans Mono, Andale Mono, monospace;
+      color: white;
+      background-color: black;
+      text-align: right;
+    }
+    canvas {
+      padding: 50px;
+    }
+  </style>
+</head>
+<script>
+  var fps = 30;
+  var frameDuration = 1000/fps ;
+  var canvas;
+  var lastDrawAt;
+  var playAt;
+  var playing;
+
+  function compile_vertex_shader(id) {
+    var vertex_shader = gl.createShader(gl.VERTEX_SHADER);
+    gl.shaderSource(vertex_shader, document.getElementById(id).text);
+    gl.compileShader(vertex_shader);
+
+    var success = gl.getShaderParameter(vertex_shader, gl.COMPILE_STATUS);
+    if (!success) {
+      console.log(gl.getShaderInfoLog(vertex_shader));
+    }
+    return vertex_shader;
+  }
+
+  function compile_fragment_shader(id){
+    var fragment_shader = gl.createShader(gl.FRAGMENT_SHADER);
+    gl.shaderSource(fragment_shader, document.getElementById(id).text);
+    gl.compileShader(fragment_shader);
+
+    var success = gl.getShaderParameter(fragment_shader, gl.COMPILE_STATUS);
+    if (!success) {
+      console.log(gl.getShaderInfoLog(fragment_shader));
+    }
+    return fragment_shader;
+  }
+
+  function build_program(vertex_shader, fragment_shader) {
+    var program = gl.createProgram();
+    gl.attachShader(program, vertex_shader);
+    gl.attachShader(program, fragment_shader);
+    gl.linkProgram(program);
+    var success = gl.getProgramParameter(program, gl.LINK_STATUS);
+    if (!success) {
+      console.log(gl.getProgramInfoLog(program));
+    }
+    return program;
+  }
+
+  function assign_positions(program, attribute, positions) {
+    var positionAttributeLocation = gl.getAttribLocation(program, attribute);
+    var positionBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(positionAttributeLocation);
+    gl.vertexAttribPointer(
+            positionAttributeLocation, 2, gl.FLOAT, false, 0, 0)
+  }
+
+  function setupGL() {
+    canvas = document.getElementById("portal");
+    gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+
+    var positions = [
+      0, 0,
+      1, 1,
+      0, 1,
+      0, 0,
+      1, 1,
+      1, 0,
+    ];
+
+    var vertex_shader = compile_vertex_shader("vertex-shader");
+    var main_fragment_shader = compile_fragment_shader("main-fragment-shader");
+    main_program = build_program(vertex_shader, main_fragment_shader);
+    gl.useProgram(main_program);
+
+    assign_positions(main_program, "a_position", positions);
+
+    setUniforms();
+
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+  }
+
+  function setUniforms(){
+    gl.uniform1f(gl.getUniformLocation(main_program, "iTime"), document.getElementById("zoomTime").value);
+    gl.uniform2fv(gl.getUniformLocation(main_program, "iResolution"), [canvas.width, canvas.height]);
+  }
+
+  function setFramebuffer(fbo, width, height, offset_x = 0, offset_y = 0) {
+    // make this the framebuffer we are rendering to.
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+
+    // Tell webgl the viewport setting needed for framebuffer.
+    gl.viewport(offset_x, offset_y, width, height);
+  }
+
+  function drawGL() {
+    lastDrawAt = Date.now();
+    setUniforms();
+    gl.useProgram(main_program);
+    setFramebuffer(null, canvas.width, canvas.height);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+  }
+
+  function upload(){
+    var r = new XMLHttpRequest();
+    r.open('POST', 'http://localhost:3999/', false);
+    var blob = dataURItoBlob(canvas.toDataURL());
+    r.send(blob);
+  }
+
+  function dataURItoBlob(dataURI) {
+    var mimetype = dataURI.split(",")[0].split(':')[1].split(';')[0];
+    var byteString = atob(dataURI.split(',')[1]);
+    var u8a = new Uint8Array(byteString.length);
+    for (var i = 0; i < byteString.length; i++) {
+     u8a[i] = byteString.charCodeAt(i);
+    }
+    return new Blob([u8a.buffer], { type: mimetype });
+  };
+
+  function animate(){
+    let now = Date.now();
+    if(playing) {
+      let zt = document.getElementById("zoomTime");
+
+      let elapsed = now - playAt;
+      let nextFrameAt = zt.value * 1000 + frameDuration;
+
+      if(elapsed >= nextFrameAt) {
+        zt.value = (nextFrameAt / 1000).toFixed(2);
+        drawGL();
+        if(0) { upload(); }
+      }
+    }
+
+    requestAnimationFrame(animate);
+  }
+
+  function start(){
+    setupGL();
+    playAt = Date.now();
+    drawGL();
+    requestAnimationFrame(animate);
+    play();
+  }
+
+  function rezoom() {
+    drawGL();
+  }
+
+  function play() {
+    if(playing) { return; }
+    let now = Date.now();
+
+    let zt = document.getElementById("zoomTime");
+
+    playAt = now - zt.value * 1000;
+    playing = true;
+  }
+
+  function pause() {
+    playing = false;
+  }
+
+
+</script>
+<script id="vertex-shader" type="x-shader/x-vertex">
+  precision highp float;
+  attribute vec4 a_position;
+
+  varying vec2 position;
+  uniform vec2 iResolution;
+
+  void main() {
+    position = a_position.xy * iResolution;
+    gl_Position = 2.0 * a_position - 1.0;
+  }
+</script>
+<script id="main-fragment-shader" type="x-shader/x-fragment">
+
+  precision highp float;
+
+  uniform float iTime;
+  varying vec2 position;
+  uniform vec2 iResolution;
+
+  void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
+    vec2 uv = 15000.0 / 1050. * (fragCoord.xy - iResolution.xy/2.);
+
+    float breath_speed = 1.0;
+    float t = 0. + iTime;
+    float value = breath_speed * t + (t * 0.125) * cos(uv.x) * cos(uv.y);
+    float color = sin(value) * 3.0;
+
+    float low = abs(color);
+    float med = abs(color) - 1.0;
+    float high = abs(color) - 2.0;
+
+    vec4 lifeColor;
+
+    if(color > 0.) {
+      lifeColor = vec4(high, high, med,1.0);
+    } else {
+      lifeColor = vec4(med, high, high,1.0);
+    }
+
+    fragColor = lifeColor * 1.1;
+}
+
+void main() {
+  mainImage(gl_FragColor, position);
+}
+    </script>
+<body onload="start()">
+  <div id="controls">
+    <input type="number" value="400" id="zoomTime" onChange="rezoom()">
+    <br>
+    <a href="javascript:pause()">⏸️</a>
+    <a href="javascript:play()">▶️</a>
+  </div>
+  <canvas id="portal" width="750" height="750"></canvas>
+</body>
+</html>
